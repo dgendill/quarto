@@ -1,0 +1,11 @@
+/bower_components/
+/node_modules/
+/.pulp-cache/
+/output/
+/.psc*
+/.psa*
+/server.pem
+/.psc-ide-port
+/.psci_modules
+/js/app.js
+/i.txt

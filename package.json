@@ -1,0 +1,17 @@
+{
+  "name": "quarto-legends",
+  "version": "0.0.1",
+  "private": true,
+  "description": "Experience the game of Quarto like never before.",
+  "main": "index.js",
+  "directories": {
+    "test": "test"
+  },
+  "scripts": {
+    "test": "pulp --watch test --main Main.Test",
+    "server" : "python server.py",
+    "compile": "pulp --watch build -t js/app.js"
+  },
+  "author": "Dominck Gendill",
+  "license": "LicenseRef-LICENSE"
+}
