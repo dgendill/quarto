@@ -12,7 +12,8 @@ pulp build --to js/app.js
 
 ### Start Server
 
-Create server.pem in the project root.
+Create server.pem in the project root, or start any other local server. (https is)
+for future webRTC support)
 
 ```
 openssl req -new -x509 -keyout server.pem -out server.pem -days 365 -nodes
