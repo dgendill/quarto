@@ -3,6 +3,8 @@
 The game of Quarto built with [Purescript](http://www.purescript.org/) and [Halogen](https://github.com/slamdata/purescript-halogen).
 A work in progress...
 
+[This github preview should work](http://htmlpreview.github.io/?https://github.com/dgendill/quarto/blob/master/index.html)
+
 # Installation
 
 ```

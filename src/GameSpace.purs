@@ -19,6 +19,7 @@ type State =
 data Query a
   = PlayPoint Point a
   | PlayPiece Piece a
+  | Clear a
   | Initialize a
   | Finalize a
   | IsPlayed (Maybe Piece -> a)
@@ -41,11 +42,11 @@ gameSpace ipoint ipiece =
     , eval
     , initializer: Just (H.action Initialize)
     , finalizer: Just (H.action Finalize)
-    , receiver: reciever
+    , receiver: (const Nothing)
     }
   where
 
-  -- reciever :: Input -> Maybe (Query Message m)
+  -- reciever :: Input -> Maybe (Query Message (Aff (console :: CONSOLE | eff)))
   reciever p =
     case p of
       (Just pi) -> Just $ (H.action $ PlayPiece pi)
@@ -85,3 +86,7 @@ gameSpace ipoint ipiece =
     IsPlayed reply -> do
       state <- H.get
       pure (reply state.piece)
+
+    Clear next -> do
+      H.modify \s -> s { piece = Nothing }
+      pure next

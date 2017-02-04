@@ -10,7 +10,8 @@
   "scripts": {
     "test": "pulp --watch test --main Main.Test",
     "server" : "python server.py",
-    "compile": "pulp --watch build -t js/app.js"
+    "compile": "pulp --watch build -t js/app.js",
+    "scss": "scss --watch css/main.scss:css/main.css"
   },
   "author": "Dominck Gendill",
   "license": "LicenseRef-LICENSE"

@@ -7,5 +7,6 @@
 /server.pem
 /.psc-ide-port
 /.psci_modules
-/js/app.js
 /i.txt
+/.sass-cache
+/npm-debug.log

@@ -8,18 +8,25 @@ import Halogen.HTML.Core as HHC
 import Halogen.HTML.Events as HE
 import Halogen.HTML.Properties as HP
 import State as S
+import State as GState
+import Control.Alt (void, (<|>))
 import Control.Monad.Aff (Aff)
 import Control.Monad.Aff.Class (liftAff)
 import Control.Monad.Aff.Console (CONSOLE, log)
+import Control.Monad.Eff (foreachE)
+import Control.Monad.State (class MonadState)
+import DOM.HTML.HTMLAnchorElement (setDownload)
+import Data.Array (foldM, length)
 import Data.Either (fromRight)
 import Data.Either (Either(..), either)
 import Data.Lazy (defer)
 import Data.Maybe (Maybe(..), fromMaybe, isJust)
+import Data.Monoid (class Monoid, append, mempty)
 import Data.Traversable (foldMap, foldr)
 import Data.Tuple (Tuple(..))
 import Halogen (ClassName(..))
 import Partial.Unsafe (unsafePartial)
-import State (Board, Piece, Point, emptyBoard, makePoints, placePiece, positionPlayed, unfoldBoard, unplayedPieces, pieceClasses)
+import State (Board, Piece, Point, emptyBoard, makePoints, pieceClasses, placePiece, positionPlayed, unfoldBoard, unplayedPieces, winningBoard)
 
 type State =
   { board :: Board
@@ -31,6 +38,7 @@ data Query a
   | GivePiece Piece a
   | Play Point a
   | IsPlayed Point (Maybe Piece -> a)
+  | Reset a
 
 type Input = Unit
 
@@ -38,9 +46,29 @@ data Message
   = Played Piece Point
   | BadPlay String (Maybe Piece) Point
 
+whenOnDeck :: forall a. (Monoid a) => State -> a -> a
+whenOnDeck s yes =
+  if (isJust s.ondeck)
+  then yes
+  else mempty
 
-gameBoard :: forall eff. H.Component HH.HTML Query Input Message (Aff (console :: CONSOLE | eff))
-gameBoard =
+whenNotOnDeck :: forall a. (Monoid a) => State -> a -> a
+whenNotOnDeck s yes =
+  if (not $ isJust s.ondeck)
+  then yes
+  else mempty
+
+whenWinningBoard ::  forall a. (Monoid a) => State -> a -> a
+whenWinningBoard s yes =
+  if length (winningBoard s.board) > 0
+  then yes
+  else mempty
+
+maybee :: forall a b. (a -> b) -> b -> (Maybe a) -> b
+maybee f d m = fromMaybe d (f <$> m)
+
+gameBoard :: forall eff. Maybe Board -> H.Component HH.HTML Query Input Message (Aff (console :: CONSOLE | eff))
+gameBoard iboard =
   H.lifecycleParentComponent
     { initialState: const initialState
     , render
@@ -53,29 +81,38 @@ gameBoard =
 
   initialState :: State
   initialState =
-    { board : either
-                (const emptyBoard)
-                id
-                (placePiece emptyBoard (S.piece S.Tall S.White S.Hollow S.Square) (Tuple 4 4))
+    { board : fromMaybe emptyBoard iboard
     , ondeck : Nothing }
 
   listen :: Point -> GameSpace.Message -> Maybe (Query Unit)
   listen p = Just <<< case _ of
     GameSpace.PlayedPoint point -> H.action (Play point)
 
+
   render :: State -> H.ParentHTML Query GameSpace.Query Point (Aff (console :: CONSOLE | eff))
   render state =
     HH.div_
       [ HH.div
-        [HP.id_ "available"]
+        [HP.id_ "left"]
 
-        (foldMap (\piece ->
-          [ HH.div
-            [HP.classes $ HH.ClassName <$> ["placeholder", (pieceClasses piece)]
-            ,HE.onClick (HE.input_ $ GivePiece piece) ]
-            []
-          ]
-        ) (unplayedPieces state.board))
+          (if ((length $ winningBoard state.board) > 0)
+            then [HH.div_
+                  [HH.text "You are a winner!"]
+                  ,HH.button [HE.onClick (HE.input_ $ Reset)] [HH.text "Play again"]]
+            else
+              (whenNotOnDeck state
+                [HH.div [HP.id_ "available"]
+                  (foldMap (\piece ->
+                    [ HH.div
+                      [HP.classes $ HH.ClassName <$> ["placeholder", (pieceClasses piece)]
+                      ,HE.onClick (HE.input_ $ GivePiece piece) ]
+                      []
+                    ]
+                  ) (unplayedPieces state.board))
+                ,HH.div_ [HH.text "Choose a piece to give to your opponent."]
+                ]
+              )
+            )
 
       , HH.div
         [HP.id_ "board-wrapper"]
@@ -89,15 +126,17 @@ gameBoard =
           ) (unfoldBoard state.board))
         , HH.div
           [HP.id_ "action"]
-          [HH.div [HP.class_ $ ClassName "play-message"] [HH.text "Piece to Play"]
+          [HH.div_
+            (whenOnDeck state [HH.div [HP.class_ $ ClassName "play-message"] [HH.text "Play this piece."]])
           ,HH.div
-            [HP.classes $ (HH.ClassName <<< (fromMaybe "")) <$> [Just "placeholder-toplay", pieceClasses >>> ((<>) "placeholder") <$> state.ondeck]
-            ]
+            [HP.classes $ (HH.ClassName <<< (fromMaybe "")) <$> [Just "placeholder-toplay", pieceClasses >>> ((<>) "placeholder") <$> state.ondeck]]
             []
           ]
+
+
+
         ]
       ]
-
 
   eval :: Query ~> H.ParentDSL State Query GameSpace.Query Point Message (Aff (console :: CONSOLE | eff))
   eval = case _ of
@@ -114,17 +153,45 @@ gameBoard =
           liftAff $ log $ "(Board) Playing ondeck piece " <> (show piece)
           let ei = placePiece state.board piece point
           case ei of
-            (Right b) -> H.raise $ Played piece point
-            (Left e) -> H.raise $ BadPlay e (Just piece) point
+            (Right b) -> do
+              void $ H.query point $ H.action (GameSpace.PlayPiece piece)
+              setOnDeck Nothing
+              updateBoard b
+            (Left e) -> H.raise $ BadPlay "There is no piece on deck." Nothing point
         Nothing ->
           H.raise $ BadPlay "There is no piece on deck." Nothing point
 
       pure next
 
     GivePiece piece next -> do
-      H.modify (\s -> s { ondeck = (Just piece) } )
+      setOnDeck (Just piece)
       pure next
 
     IsPlayed point reply -> do
       state <- H.get
       pure (reply (positionPlayed state.board point))
+
+    Reset next -> do
+      updateBoard emptyBoard
+      setOnDeck Nothing
+      let t = allPoints
+      foldM (\a b ->
+        H.query b $ H.action (GameSpace.Clear)
+      ) Nothing t
+
+      pure next
+
+allPoints = do
+  x <- [1,2,3,4]
+  y <- [1,2,3,4]
+  pure $ Tuple x y
+
+
+
+setOnDeck :: forall m r. (MonadState { "ondeck" :: Maybe Piece | r } m) => Maybe Piece -> m Unit
+setOnDeck m = do
+  H.modify (\s -> s { ondeck = m })
+
+updateBoard :: forall m r. (MonadState { "board" :: Board | r } m) => Board -> m Unit
+updateBoard board = do
+  H.modify (\s -> s { board = board })

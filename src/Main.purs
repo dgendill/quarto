@@ -6,7 +6,6 @@ import Data.Tuple
 import Data.Maybe
 import Data.Either
 import Halogen.Aff as HA
-import Button (myButton)
 import Control.Monad.Aff (Aff)
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Class (liftEff)
@@ -24,8 +23,8 @@ renderGame = HA.runHalogenAff do
   body <- HA.awaitBody
   el <- HA.selectElement "#board"
   case el of
-    Just e -> runUI (gameBoard) unit body
-    Nothing -> runUI (gameBoard) unit body
+    Just e -> runUI (gameBoard Nothing) unit body
+    Nothing -> runUI (gameBoard Nothing) unit body
 
 -- Nothing -> runUI (gameSpace (Tuple 1 1) Nothing) unit body
 -- Just $ (unsafePartial (fromRight $ (piece Tall White Circle Hollow))
