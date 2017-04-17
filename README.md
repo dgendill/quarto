@@ -1,6 +1,6 @@
 # Quarto
 
-![Screenshot of Game](./images/preview.jpg)
+![Screenshot of Game](./images/preview.png)
 
 The game of Quarto.  [Try it here!](https://dgendill.com/content/quarto)
 
