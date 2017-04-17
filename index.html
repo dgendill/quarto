@@ -1,85 +1,81 @@
 <!DOCTYPE html>
 <html>
-
 <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Quarto</title>
 
-  <title>Quarto Legends</title>
+  <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      var bg = document.getElementById('background-image');
+      if (navigator && navigator.userAgent) {
+        var ua = navigator.userAgent.toLowerCase();
+        var isAndroid = ua.indexOf("android") > -1;
+      }
 
-  <link rel="stylesheet" href="css/normalize.css" />
+      window.setTimeout(function() {
+        bg.style.opacity = 1.0;
+      }, 600);
+    })
+  </script>
+
   <link rel="stylesheet" href="css/main.css" />
+  <link rel="apple-touch-icon" sizes="57x57" href="favicon/apple-icon-57x57.png">
+  <link rel="apple-touch-icon" sizes="60x60" href="favicon/apple-icon-60x60.png">
+  <link rel="apple-touch-icon" sizes="72x72" href="favicon/apple-icon-72x72.png">
+  <link rel="apple-touch-icon" sizes="76x76" href="favicon/apple-icon-76x76.png">
+  <link rel="apple-touch-icon" sizes="114x114" href="favicon/apple-icon-114x114.png">
+  <link rel="apple-touch-icon" sizes="120x120" href="favicon/apple-icon-120x120.png">
+  <link rel="apple-touch-icon" sizes="144x144" href="favicon/apple-icon-144x144.png">
+  <link rel="apple-touch-icon" sizes="152x152" href="favicon/apple-icon-152x152.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="favicon/apple-icon-180x180.png">
+  <link rel="icon" type="image/png" sizes="192x192"  href="favicon/android-icon-192x192.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="favicon/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="96x96" href="favicon/favicon-96x96.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="favicon/favicon-16x16.png">
+  <link rel="manifest" href="favicon/manifest.json">
+  <meta name="msapplication-TileColor" content="#ffffff">
+  <meta name="msapplication-TileImage" content="favicon/ms-icon-144x144.png">
+  <meta name="theme-color" content="#ffffff">
 
 </head>
-
 <body>
-
-  <!-- <div id="available">
-    <div class="available-message">Choose piece to give</div>
-    <div class="placeholder s t  b h"></div>
-    <div class="placeholder s t  b f "></div>
-    <div class="placeholder s t  w h"></div>
-    <div class="placeholder s t  w f"></div>
-    <div class="placeholder s sh b h"></div>
-    <div class="placeholder s sh b f"></div>
-    <div class="placeholder s sh w h"></div>
-    <div class="placeholder s sh w f"></div>
-    <div class="placeholder c t  b h"></div>
-    <div class="placeholder c t  b f"></div>
-    <div class="placeholder c t  w h"></div>
-    <div class="placeholder c t  w f"></div>
-    <div class="placeholder c sh b h"></div>
-    <div class="placeholder c sh b f"></div>
-    <div class="placeholder c sh w h"></div>
-    <div class="placeholder c sh w f"></div>
-  </div>
-
-  <div id="board-wrapper">
-    <div id="board">
-
-      <div class="placeholder s t  b h"></div>
-      <div class="placeholder s t  b f "></div>
-      <div class="placeholder s t  w h"></div>
-      <div class="placeholder s t  w f"></div>
-      <div class="placeholder s sh b h"></div>
-      <div class="placeholder s sh b f"></div>
-      <div class="placeholder s sh w h"></div>
-      <div class="placeholder s sh w f"></div>
-      <div class="placeholder c t  b h"></div>
-      <div class="placeholder c t  b f"></div>
-      <div class="placeholder c t  w h"></div>
-      <div class="placeholder c t  w f"></div>
-      <div class="placeholder c sh b h"></div>
-      <div class="placeholder c sh b f"></div>
-      <div class="placeholder c sh w h"></div>
-      <div class="placeholder c sh w f"></div>
-
-    </div>
-    <div id="action">
-      <div class="play-message">Your Play</div>
-      <div class="placeholder-toplay placeholder s t  b h"></div>
+<div id="background-image" aria-hidden="true"></div>
+<div id="wrapper">
+  <canvas width="800" id="board-base"></canvas>
+  <div id="win-screen"></div>
+  <div id="menu">
+    <div class="inner">
+      <h1 class="title">Quarto Legends</h1>
+      <ul class="vertical-button-list">
+        <li>
+          <button class="new-game-single-player primary">
+            <span>Single Player</span>
+            <small>Play against the legendary computer master.</small>
+          </button>
+        </li>
+        <li>
+          <button class="new-game primary">
+            <span>Local Two Player</span>
+            <small>Two players sitting next to each other.</small>
+          </button>
+        </li>
+        <li>
+          <button class="new-game-remote primary">
+            <span>Remote Two Player</span>
+            <small>Two players playing over the internet.</small>
+          </button>
+        </li>
+        <li>
+          <button class="how-to-play primary">
+            <span>How To Play</span>
+            <small>Learn how to play.</small>
+          </button>
+        </li>
     </div>
   </div>
-
-  <div id="chat">
-    <div id="chat-messagebox">
-      <p class="message">Welcome to Quarto!</p>
-      <p class="message u-message"><span class="name u1">John:</span> Hi</p>
-      <p class="message u-message"><span class="name u2">Bill:</span> Sup</p>
-    </div>
-    <input type="text" id="message-input" placeholder="Type message">
-    <input type="text" id="roomname" placeholder="Enter room id">
-    <button>Generate Random Room ID</button>
-    <button>Connect to Room</button>
-    <button>Change Username</button>
-    <button>Copy Room ID</button>
-    <button>Copy Room URL</button>
-    <button>Give Up</button>
-    <button>Start Game</button>
-  </div> -->
-
-  <!-- <script src="bower_components/webrtc-adapter/release/adapter.js"></script> -->
-  <!-- <script src="js/main.js"></script> -->
-  <script src="js/app.js"></script>
-
+  <div id="remote-setup"></div>
+</div>
+<script src="js/app-min.js"></script>
 </body>
-
 </html>
