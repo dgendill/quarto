@@ -13,15 +13,16 @@ import Control.Monad.Eff.Exception (EXCEPTION)
 import Control.Monad.Eff.Ref (Ref, modifyRef, readRef)
 import Control.Monad.Trans.Class (lift)
 import Control.MonadPlus (guard)
+import DOM.Node.ParentNode (QuerySelector(..))
 import Data.Either (Either, either)
 import Data.Maybe (Maybe(Just, Nothing), isNothing)
+import DataTypes (PlayOrder(PlaySecond, PlayFirst), Protocol(PPlay, PGive), TwoPlayerGameState, decodeProtocol, encodeGive, encodePlay)
 import Effects (GameEffects)
 import Game (disableAvailablePieces, enableAvailablePieces, enableBoard)
 import GameGraphics (hideGivePieceText, hideMessage, hidePlayPieceText, showGivePieceText, showMessage, showPlayPieceText)
 import GameLogic (RemoteDriver, boardEventProducer, pieceProducer, resetBoard, startGameState, twoPlayerSameTerminalGive, twoPlayerSameTerminalPlay)
 import Halogen.VDom.Driver (runUI)
 import Menus (showGame)
-import DataTypes (PlayOrder(PlaySecond, PlayFirst), Protocol(PPlay, PGive), TwoPlayerGameState, decodeProtocol, encodeGive, encodePlay)
 import QHalogen.NetworkMenu (Message(Disconnected, Connected), networkMenu)
 import State (PieceID, PositionID)
 import UI (onClick, onEvent)
@@ -97,14 +98,14 @@ p1Loop driver channel = do
   giveStep stateRef channel
   lift $ hideGivePieceText
   lift $ showMessage "Wait for your opponent to play."
-  awaitPlay stateRef channel
+  void $ awaitPlay stateRef channel
   lift $ hideMessage
   lift $ showMessage "Wait for your opponent to give you a piece."
   winner1 <- lift (driver.winHandler stateRef (\_ ->
     showMessage "You lose!"
   ))
   lift $ guard $ isNothing winner1
-  awaitGive stateRef channel
+  void $ awaitGive stateRef channel
   lift $ hideMessage
   lift $ showPlayPieceText
   playStep stateRef channel
@@ -122,7 +123,7 @@ p2Loop driver channel = do
   let stateRef = driver.state
   lift $ disableAvailablePieces
   lift $ showMessage "Wait for your opponent to give you a piece."
-  awaitGive stateRef channel
+  void $ awaitGive stateRef channel
   lift $ hideMessage
   lift $ showPlayPieceText
   playStep stateRef channel
@@ -135,7 +136,7 @@ p2Loop driver channel = do
   giveStep stateRef channel
   lift $ hideGivePieceText
   lift $ showMessage "Wait for your opponent to play."
-  awaitPlay stateRef channel
+  void $ awaitPlay stateRef channel
   lift $ hideMessage
   winner2 <- lift $ driver.winHandler stateRef (\_ -> do
     showMessage "You lose!"
@@ -148,7 +149,7 @@ p2Loop driver channel = do
 setupRemoteMenu :: forall e. RemoteDriver (err :: EXCEPTION | e ) -> TwoPlayerGameEffects e Unit
 setupRemoteMenu driver = do
   let stateRef = driver.state
-  el <- HA.selectElement "#remote-setup"
+  el <- HA.selectElement (QuerySelector "#remote-setup")
   case el of
     (Just element) -> do
       liftEff $ HA.runHalogenAff do
@@ -179,7 +180,7 @@ setupRemoteMenu driver = do
                   (WinMenu.PlayAgain) -> do
                     resetBoard stateRef
                     startGameState stateRef
-                    attempt startGame
+                    void $ attempt startGame
                     pure $ Nothing
                   (WinMenu.MainMenu) -> do
                     resetBoard stateRef
@@ -188,7 +189,7 @@ setupRemoteMenu driver = do
                   _ -> pure $ Nothing
               ))
 
-              forkAff $ attempt startGame
+              void $ forkAff $ attempt startGame
 
               pure $ Nothing
             (Disconnected m) -> do

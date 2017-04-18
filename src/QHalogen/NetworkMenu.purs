@@ -9,7 +9,7 @@ import Halogen.HTML.Properties as HP
 import Halogen.HTML.Properties.ARIA as Aria
 import Halogen.Query.EventSource as HES
 import QClickToCopy as CTC
-import Control.Monad.Aff (Aff, forkAff, later', runAff)
+import Control.Monad.Aff (Aff, forkAff, delay, runAff)
 import Control.Monad.Aff.AVar (AVAR, makeVar', modifyVar, peekVar)
 import Control.Monad.Aff.Class (class MonadAff, liftAff)
 import Control.Monad.Aff.Console (CONSOLE, log)
@@ -18,11 +18,13 @@ import Control.Monad.Eff.Class (liftEff)
 import DOM (DOM)
 import Data.Either (either)
 import Data.Foldable (traverse_)
+import Data.Int (toNumber)
 import Data.Maybe (Maybe(..), fromMaybe)
+import Data.Time.Duration (Milliseconds(..))
+import DataTypes (PlayOrder(..))
 import Halogen (ClassName(ClassName), HalogenM, PropName(PropName), eventSource, eventSource_, subscribe)
 import Menus (showMainMenu)
 import MyRTC (basicOffer, connection, createAnswerString, createOfferString, readDescription)
-import DataTypes (PlayOrder(..))
 import QHalogen.HTML (verticalButtonList)
 import WebRTC.RTC (RTC, RTCDataChannel, RTCPeerConnection, createAnswer, createDataChannel, oncloseChannel, ondataChannel, onicecandidate, setLocalDescription, setRemoteDescription)
 
@@ -394,7 +396,8 @@ updateLoading max message = do
 runForTime :: forall e. Int -> Int -> Aff e Unit -> Aff e Unit
 runForTime interval remaining callback
   | remaining <= 0 = pure unit
-  | otherwise = later' interval do
+  | otherwise = do
+      delay (Milliseconds $ toNumber interval)
       callback
       runForTime interval (remaining - interval) callback
 

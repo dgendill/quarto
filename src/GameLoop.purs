@@ -17,10 +17,12 @@ import Control.Monad.Eff.Ref (Ref, modifyRef, newRef, readRef)
 import Control.Monad.Trans.Class (lift)
 import Control.MonadPlus (guard)
 import DOM.Event.Event (Event, type_)
+import DOM.Node.ParentNode (QuerySelector(..))
 import Data.Foldable (traverse_)
 import Data.Maybe (Maybe(Nothing, Just), fromJust, isNothing)
 import Data.Newtype (unwrap)
 import Data.Traversable (traverse)
+import DataTypes (GameState, GameType(SinglePlayer, TwoPlayerSameTerminal))
 import Demo (runDemo)
 import Effects (GameEffects)
 import Game (disableAvailablePieces, enableAvailablePieces, enableBoard)
@@ -29,7 +31,6 @@ import GameLogic (Driver, basicWinHandler, boardEventProducer, initialState, ini
 import Halogen.VDom.Driver (runUI)
 import Menus (hideMainMenu, showGame)
 import Partial.Unsafe (unsafePartialBecause)
-import DataTypes (GameState, GameType(SinglePlayer, TwoPlayerSameTerminal))
 import QHalogen.WinMenu (winMenu)
 import RemoteGameLoop (setupRemoteMenu)
 import State (pieceId, unsafePieceIdToPiece)
@@ -50,7 +51,7 @@ setGameType state t = liftEff $ modifyRef state (_ { gametype = t })
 mainMenuHandler :: forall e. String -> GameEffects (err :: EXCEPTION | e) Unit
 mainMenuHandler e = do
 
-  io <- ((HA.selectElement "#win-screen") >>= (traverse (runUI winMenu unit))) >>= (\m -> do
+  io <- ((HA.selectElement (QuerySelector "#win-screen")) >>= (traverse (runUI winMenu unit))) >>= (\m -> do
           pure $ unsafePartialBecause "#win-screen is assumed to always be there" (fromJust m)
         )
 
@@ -71,7 +72,7 @@ mainMenuHandler e = do
           (WinMenu.PlayAgain) -> do
             resetBoard state
             startGameState state
-            attempt startGame
+            void $ attempt startGame
             pure $ Nothing
           (WinMenu.MainMenu) -> do
             resetBoard state
@@ -81,7 +82,7 @@ mainMenuHandler e = do
             pure $ Nothing
       ))
 
-      attempt startGame
+      void $ attempt startGame
       pure unit
 
     "new-game-remote" -> do
@@ -105,7 +106,7 @@ mainMenuHandler e = do
           (WinMenu.PlayAgain) -> do
             resetBoard state
             startGameState state
-            attempt startGame
+            void $ attempt startGame
             pure $ Nothing
           (WinMenu.MainMenu) -> do
             resetBoard state
@@ -114,7 +115,7 @@ mainMenuHandler e = do
             pure $ Nothing
       ))
 
-      attempt startGame
+      void $ attempt startGame
       pure unit
 
     "how-to-play" -> do

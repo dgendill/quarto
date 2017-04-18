@@ -8,7 +8,7 @@ module MyRTC (
 
 import Prelude
 import Control.Monad.Aff.Console as Affc
-import Control.Monad.Aff (Aff, forkAff, later', launchAff)
+import Control.Monad.Aff (Aff, delay, forkAff, launchAff)
 import Control.Monad.Aff.Class (liftAff)
 import Control.Monad.Aff.Console (CONSOLE)
 import Control.Monad.Eff (Eff)
@@ -18,6 +18,7 @@ import Data.Argonaut (decodeJson, encodeJson, jsonParser)
 import Data.Argonaut.Core (stringify)
 import Data.Either (Either)
 import Data.NonEmpty (NonEmpty, singleton)
+import Data.Time.Duration (Milliseconds(..))
 import WebRTC.RTC (Ice, RTC, RTCPeerConnection, RTCSessionDescription, ServerType(STUN), createAnswer, createDataChannel, createOffer, newRTCPeerConnection, noMediaRTCOffer, ondataChannel, onmessageChannelOnce, rtcSessionDescriptionSdp, send, setLocalDescription, setRemoteDescription)
 
 url :: String -> { urls :: NonEmpty Array String }
@@ -52,7 +53,7 @@ createAnswerString answer = do
 readDescription :: forall e. String -> Aff (rtc :: RTC | e) (Either String RTCSessionDescription)
 readDescription s = pure $ (jsonParser s) >>= decodeJson
 
-main :: forall e. Eff ( rtc :: RTC, err :: EXCEPTION, console :: CONSOLE | e ) Unit
+main :: forall e. Eff ( rtc :: RTC, exception :: EXCEPTION, console :: CONSOLE | e ) Unit
 main = void $ launchAff $ do
 
   Affc.log "Created local peer connection object p1"
@@ -61,16 +62,18 @@ main = void $ launchAff $ do
   Affc.log "Created remote peer connection object p2"
   p2 <- liftEff $ connection
 
-  forkAff $ do
+  void $ forkAff $ do
     p1Data <- createDataChannel "test" p1
     p2Data <- ondataChannel p2
     Affc.log "Data channels 1 and 2 are open"
-    later' 2000 do
+    _ <- forkAff do
+      delay (Milliseconds 2000.00)
       Affc.log "Sending hellos."
       d1 <- liftAff $ onmessageChannelOnce p1Data
       d2 <- liftAff $ onmessageChannelOnce p2Data
       liftEff $ send "Hello p1" p1Data
       liftEff $ send "Hello p2" p2Data
+    pure unit
 
   Affc.log "p1 createOffer start"
   offer <- createOffer noMediaRTCOffer p1

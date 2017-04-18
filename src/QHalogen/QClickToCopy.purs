@@ -139,12 +139,12 @@ clickToCopy value =
       })
       pure next
 
-handleCopyError :: forall e m a. (Bind m, MonadEff (dom :: DOM | e) m) => HTMLElement -> (Boolean -> Eff (dom :: DOM | e) Unit) -> a -> m Unit
+handleCopyError :: forall e m a. (Bind m) => (MonadEff (dom :: DOM | e) m) => HTMLElement -> (Boolean -> Eff (dom :: DOM | e) Unit) -> a -> m Unit
 handleCopyError textarea' callback err = do
-  (H.liftEff (selectElementText textarea'))
+  void $ H.liftEff (selectElementText textarea')
   H.liftEff $ callback false
 
-handleCopySuccess :: forall e m a. (Bind m, MonadEff (dom :: DOM | e) m) => HTMLElement -> (Boolean -> Eff (dom :: DOM | e) Unit) -> a -> m Unit
+handleCopySuccess :: forall e m a. (Bind m) => (MonadEff (dom :: DOM | e) m) => HTMLElement -> (Boolean -> Eff (dom :: DOM | e) Unit) -> a -> m Unit
 handleCopySuccess textarea' callback success = do
-  (H.liftEff (selectElementText textarea'))
+  void $ H.liftEff (selectElementText textarea')
   H.liftEff $ callback true

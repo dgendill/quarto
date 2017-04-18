@@ -6,11 +6,13 @@ import Data.Generic.Rep as GR
 import Data.List as L
 import Control.Apply (lift3, lift4)
 import Control.Monad.Except (runExcept, throwError)
-import Data.Argonaut (class DecodeJson, class EncodeJson, gDecodeJson, gEncodeJson)
+import Data.Argonaut (class DecodeJson, class EncodeJson)
+import Data.Argonaut.Decode.Generic (gDecodeJson)
+import Data.Argonaut.Encode.Generic (gEncodeJson)
 import Data.Array (concat, filter, foldl, head, length, nub, reverse, snoc, sort, tail)
 import Data.Either (Either(..), either, fromRight)
-import Data.Foreign (ForeignError(ForeignError), parseJSON, readInt, readString)
-import Data.Foreign.Class (class IsForeign)
+import Data.Foreign (F, Foreign, ForeignError(ForeignError), readInt, readString)
+import Data.Foreign.JSON (parseJSON)
 import Data.Function.Memoize (class Tabulate, memoize)
 import Data.Generic (class Generic, gShow)
 import Data.Generic.Rep.Eq (genericEq)
@@ -29,6 +31,7 @@ import Data.Traversable (all, find, foldr, sequence, foldMap)
 import Data.Tuple (Tuple(Tuple))
 import Partial.Unsafe (unsafePartial)
 import Util (spanN)
+
 
 data Property
   = Hollow
@@ -100,12 +103,12 @@ instance ordProperty :: Ord Property where
 
 -- | The Foreign representation of a point is
 -- | number,number
-instance fPoint :: IsForeign Point where
-  read value = do
-    s <- readString value
-    case positionIdToPoint s of
-      Right point -> pure point
-      Left error -> throwError $ singleton (ForeignError error)
+readPoint :: Foreign -> F Point
+readPoint value = do
+  s <- readString value
+  case positionIdToPoint s of
+    Right point -> pure point
+    Left error -> throwError $ singleton (ForeignError error)
 
 
 both :: (Property -> Boolean) -> Property -> Property -> Boolean
@@ -144,8 +147,8 @@ showBoard board = showRows $ spanN 4 positions
 
   showRows :: { init :: Array (Tuple Point (Maybe Piece)), rest :: Array (Tuple Point (Maybe Piece)) } -> String
   showRows { init : init, rest : rest} =
-    let s = foldMap (\(Tuple point piece) -> do
-              case piece of
+    let s = foldMap (\(Tuple point piece') -> do
+              case piece' of
                 (Just p) -> " (" <> (simpleShowPiece p) <> ") "
                 Nothing ->  " ______________ "
             ) init
@@ -382,7 +385,7 @@ isDraw board = (length (unplayedPieces board) == 0) && (isNothing (winningBoard 
 -- | result for faster computation.
 winningBoard :: Board -> Maybe (Array Piece)
 -- winningBoard = winningBoardSlow
-winningBoard board = (map >>> map) unwrap $ memoize (\(GBoard board) -> (map >>> map) GPiece (winningBoardSlow board)) (GBoard board)
+winningBoard board = (map >>> map) unwrap $ memoize (\(GBoard board') -> (map >>> map) GPiece (winningBoardSlow board')) (GBoard board)
 
 
 -- | Determine if the board is a winner
@@ -509,7 +512,7 @@ foldMapEmptySpaces f board = foldEmptySpaces (\a p -> a <> f p) mempty board
 -- | Count the number of "triples" on the board and cache the results for
 -- | faster computation
 countTriples :: Board -> Int
-countTriples board = memoize (\(GBoard board) -> countTriplesSlow board) (GBoard board)
+countTriples board = memoize (\(GBoard board') -> countTriplesSlow board') (GBoard board)
 
 
 -- | Count the number of "triples" on the board

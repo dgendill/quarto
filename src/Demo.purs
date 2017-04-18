@@ -14,14 +14,15 @@ import Control.Monad.Aff (Aff, forkAff)
 import Control.Monad.Aff.AVar (AVAR)
 import Control.Monad.Aff.Console (CONSOLE)
 import Control.Monad.Writer (lift)
-import Control.Parallel (parSequence)
+import Control.Parallel (parSequence, parSequence_)
 import Data.Array (zipWithA)
 import Data.Either (Either(..))
+import Data.Foldable (traverse_)
 import Data.Function.Uncurried (Fn4, Fn5, runFn4, runFn5)
-import Data.Traversable (sequence, traverse)
+import Data.Traversable (sequence)
 import GameGraphics (GRAPHICS)
 import Menus (hideGame, showMainMenu)
-import Prelude (Unit, bind, map, pure, unit, void, ($), (*>), (>>=))
+import Prelude (Unit, bind, map, pure, unit, void, ($), (*>), (>>=), discard)
 import Shapes (GraphicItem, labelArrow, removeGraphicItem, removeGraphicItemByName, tooltip)
 
 type DemoEffects e = (Aff (graphics :: GRAPHICS, avar :: AVAR, console :: CONSOLE | e))
@@ -53,24 +54,25 @@ slide1 = do
       }
     ]
 
-  slideGraphic
+  void $ slideGraphic
 
   let
     cleanup' = cleanup (\message -> do
       case (message) of
         "next" -> do
           removeGraphicItemByName "pb1"
-          slideGraphic >>= traverse removeGraphicItem
+          slideGraphic >>= traverse_ removeGraphicItem
           slide2
         "prev" -> do
           removeGraphicItemByName "nb1"
-          slideGraphic >>= traverse removeGraphicItem
+          slideGraphic >>= traverse_ removeGraphicItem
           showMainMenu *> hideGame
         _      -> pure unit
     )
 
-  forkAff $ runProcess $ cleanup' `pullFrom` (nextButton' "nb1" 622 260)
-  forkAff $ runProcess $ cleanup' `pullFrom` (prevButton' "pb1" 510 260)
+  void $ forkAff $ runProcess $ cleanup' `pullFrom` (nextButton' "nb1" 622 260)
+  void $ forkAff $ runProcess $ cleanup' `pullFrom` (prevButton' "pb1" 510 260)
+
   pure unit
 
 
@@ -102,7 +104,7 @@ prevButton' s x y = produceAff (\emit -> do
 
 slide2 :: forall e. DemoEffects e Unit
 slide2 = do
-  parSequence
+  parSequence_
     [ animatePieceToPosition "id-Dark-Tall-Square-Hollow" "4,4"
     , animatePieceToPosition "id-Dark-Tall-Circle-Hollow" "4,3"
     , animatePieceToPosition "id-Dark-Short-Square-Hollow" "4,2"
@@ -118,7 +120,7 @@ slide2 = do
         "prev" -> removeGraphicItemByName "nb2"
         _      -> pure unit
 
-      traverse removeGraphicItem g
+      traverse_ removeGraphicItem g
 
       void $ parSequence
         [ animatePieceToHome "id-Dark-Tall-Square-Hollow"
@@ -174,7 +176,7 @@ characteristics can win."""
 
   let
     cleanup' = cleanup (\message -> do
-      traverse removeGraphicItem g
+      traverse_ removeGraphicItem g
 
       case (message) of
         "next" -> removeGraphicItemByName "pb3"
@@ -199,7 +201,7 @@ characteristics can win."""
 slide4 :: forall e. DemoEffects e Unit
 slide4 = do
   let piece = "id-Dark-Tall-Square-Hollow"
-  animatePieceToDeck piece
+  void $ animatePieceToDeck piece
   g <- sequence $
     [ tooltip {
           name : "slide4",
@@ -216,7 +218,7 @@ gives you a piece to play."""
 
   let
     cleanup' = cleanup (\message -> do
-      traverse removeGraphicItem g
+      traverse_ removeGraphicItem g
 
       case (message) of
         "next" -> removeGraphicItemByName "pb4"
@@ -242,7 +244,7 @@ slide5 :: forall e. DemoEffects e Unit
 slide5 = do
   let piece = "id-Dark-Tall-Square-Hollow"
 
-  parSequence $ [animatePieceToPosition "id-Dark-Tall-Square-Hollow" "1,4"]
+  void $ parSequence $ [animatePieceToPosition "id-Dark-Tall-Square-Hollow" "1,4"]
 
   g <- sequence $
     [ tooltip {
@@ -259,7 +261,7 @@ all pieces have been played."""
 
   let
     cleanup' = cleanup (\message -> do
-      traverse removeGraphicItem g
+      traverse_ removeGraphicItem g
 
       case (message) of
         "next" -> do
@@ -298,6 +300,27 @@ foreign import prevButton_ :: forall e.
   (Aff (avar :: AVAR, graphics :: GRAPHICS | e) Unit)
   (Aff (avar :: AVAR, graphics :: GRAPHICS | e) GraphicItem)
 
+nextButton :: forall e
+   . ShapeID
+  -> Int
+  -> Int
+  -> (Aff (avar :: AVAR, graphics :: GRAPHICS | e) Unit)
+  -> (Aff (avar :: AVAR, graphics :: GRAPHICS | e) GraphicItem)
 nextButton s x y cb = runFn5 nextButton_ s x y "NEXT" cb
-nextButtonNamed s x y n cb = runFn5 nextButton_ s x y n cb
+
+nextButtonNamed :: forall e
+   . ShapeID
+  -> Int
+  -> Int
+  -> String
+  -> (Aff (avar :: AVAR, graphics :: GRAPHICS | e) Unit)
+  -> (Aff (avar :: AVAR, graphics :: GRAPHICS | e) GraphicItem)
+nextButtonNamed id x y name cb = runFn5 nextButton_ id x y name cb
+
+prevButton :: forall e
+   . ShapeID
+  -> Int
+  -> Int
+  -> (Aff (avar :: AVAR, graphics :: GRAPHICS | e) Unit)
+  -> (Aff (avar :: AVAR, graphics :: GRAPHICS | e) GraphicItem)
 prevButton = runFn4 prevButton_

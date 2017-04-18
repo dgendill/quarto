@@ -13,7 +13,7 @@ module Shapes (
 import Prelude (Unit)
 import GameGraphics (AffGraphics)
 
-foreign import data GraphicItem :: *
+foreign import data GraphicItem :: Type
 
 type Tooltip =
   { name :: String

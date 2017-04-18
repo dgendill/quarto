@@ -1,15 +1,10 @@
 module AI where
 
-import Prelude(
-    class Eq, eq, class Ord, class Bounded, compare, top,
-    bottom, (>>>), (>), ($), otherwise, map, pure, bind, (<>), (>>=), (#),
-    (==), (>=), (<<<)
-  )
 import Control.Alt ((<|>))
 import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Random (RANDOM)
-import Data.Array (all, filterM, foldM, foldMap, fromFoldable, head)
+import Data.Array (all, filterA, foldM, foldMap, fromFoldable, head)
 import Data.Maybe (Maybe(Nothing, Just), isJust)
 import Data.Monoid.Additive (Additive(..))
 import Data.Monoid.Conj (Conj(..))
@@ -17,11 +12,8 @@ import Data.Newtype (unwrap)
 import Data.Ord.Max (Max(..))
 import Data.Ord.Min (Min(..))
 import Data.StrMap (empty)
-import State (
-  Board, Piece, Point, PositionID, countEmptySpaces, countTriples,
-  emptyBoard, foldMapEmptySpaces, mkPoint, placePieceS', pointId, unplayedPieces,
-  unplayedPoints, winningBoard
-)
+import Prelude (class Eq, eq, class Ord, class Bounded, compare, top, bottom, (>>>), (>), ($), otherwise, map, pure, bind, (<>), (>>=), (#), (==), (>=), (<<<))
+import State (Board, Piece, Point, PositionID, countEmptySpaces, countTriples, emptyBoard, foldMapEmptySpaces, mkPoint, placePieceS', pointId, unplayedPieces, unplayedPoints, winningBoard)
 import Util (randomElement)
 
 
@@ -92,7 +84,7 @@ worstPlayInSet plays =
 -- | that play.
 filterDeadEndPlays :: forall e. Array QuartoPlay -> Eff (console :: CONSOLE, random :: RANDOM | e) (Array QuartoPlay)
 filterDeadEndPlays =
-  filterM (\play -> do
+  filterA (\play -> do
     give <- bestGive (getBoard play)
     pure $ case give of
       Just _ -> true
@@ -203,4 +195,4 @@ chooseRandomPlay boards = randomElement boards >>= fromFoldable >>> pure
 
 -- | Given a condition and a set of plays, filter out the plays where the condition holds
 choosePlay :: Conj (Board -> Boolean) -> Array QuartoPlay -> Array QuartoPlay
-choosePlay condition plays = unwrap $ filterM (Conj <<< (unwrap condition) <<< getBoard) plays
+choosePlay condition plays = unwrap $ filterA (Conj <<< (unwrap condition) <<< getBoard) plays

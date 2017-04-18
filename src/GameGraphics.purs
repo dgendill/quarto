@@ -34,7 +34,7 @@ import Prelude (
     class Show, Unit, show, (<>), map
   )
 import Control.Monad.Aff (Aff, makeAff)
-import Control.Monad.Eff (Eff)
+import Control.Monad.Eff (Eff, kind Effect)
 import Control.Monad.Eff.Exception (Error)
 import DOM.Event.Event (Event)
 import DOM.HTML.Types (HTMLCanvasElement)
@@ -69,9 +69,9 @@ instance showPivotPosition :: Show PivotPosition where
   show RightCenter = "rightCenter"
   show BottomCenter = "bottomCenter"
 
-foreign import data PaperItem :: *
-foreign import data PaperProject :: *
-foreign import data GRAPHICS :: !
+foreign import data PaperItem :: Type
+foreign import data PaperProject :: Type
+foreign import data GRAPHICS :: Effect
 
 foreign import itemName_ :: Fn1 PaperItem String
 
