@@ -9,9 +9,10 @@
   },
   "scripts": {
     "test": "pulp --watch test --main Main.Test",
-    "browserify": "pulp browserify -O --to js/purescript-bundle.js",
-    "server": "python server.py",
-    "compile": "pulp --watch build -t js/purescript-bundle.js",
+    "watch": "spago build --watch",
+    "build": "spago build",
+    "server": "python -m SimpleHTTPServer",
+    "bundle": "webpack --config webpack.spago.js",
     "scss": "scss --watch css/main.scss:css/main.css",
     "webpack": "./node_modules/.bin/webpack --watch --config webpack.config.js"
   },

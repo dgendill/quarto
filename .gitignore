@@ -19,3 +19,4 @@
 /js/dev-bundle.js
 /js/webpack-bundle.js*
 /shared
+/.spago

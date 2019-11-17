@@ -83,11 +83,14 @@ export function setup() {
 }
 
 export function init(cb) {
+  console.log('Game.js init');
+  
   window.onload = function() {
 
     canvas = document.getElementById('board-base');
     canvas.width = 800; //window.innerWidth;
     canvas.height = 630; // window.innerHeight;
+    
     paper.setup('board-base');
 
     view.onFrame = function(event) {

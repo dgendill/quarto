@@ -1,39 +1,30 @@
 module GameLogic where
 
 import Prelude
-import Control.Coroutine as CR
-import Control.Coroutine.Aff as CRA
-import Halogen as H
-import QHalogen.WinMenu as WinMenu
-import Actions (givePiece, playPiece)
-import Animation (animatePieceToDeck)
-import Control.Monad.Aff.Console (log)
-import Control.Monad.Eff.Class (liftEff)
-import Control.Monad.Eff.Ref (Ref, modifyRef, readRef)
-import Control.MonadPlus (guard)
-import Data.Either (Either(..))
-import Data.Foldable (traverse_)
-import Data.Maybe (Maybe(..))
-import Data.Traversable (traverse)
-import Effects (GameEffects)
-import Game (disableAvailablePieces, disableBoard)
-import GameGraphics (hideGivePieceText, hideMessage, hidePlayPieceText, itemName, listenToAvailablePieces, listenToBoard, newGame, showMessage)
-import Halogen (HalogenIO)
-import Menus (hideGame, showMainMenu)
-import DataTypes (BGameState, BoardEvent, GameState, GameType(..), PieceEvent, Protocol(PState), TwoPlayerGameState, TwoPlayerGameStateExt)
-import State (Board, Piece, PieceID, PositionID, emptyBoard, isDraw, placePieceS, winningBoard)
-import WebRTC.RTC (closeConnection)
 
-updateState :: forall a e.
+import Actions (givePiece, playPiece)
+import Control.Coroutine as CR
+import Control.Coroutine.Aff (emit)
+import Control.Coroutine.Aff as CRA
+import Data.Maybe (Maybe(..))
+import DataTypes (BGameState, BoardEvent, GameState, GameType(..), PieceEvent, Protocol(PState), TwoPlayerGameState, TwoPlayerGameStateExt)
+import Effect.Aff (Aff)
+import Effect.Class (liftEffect)
+import Effect.Ref (Ref, modify_, read)
+import Game (disableAvailablePieces, disableBoard)
+import GameGraphics (hideMessage, itemName, listenToAvailablePieces, listenToBoard)
+import State (Board, Piece, PieceID, PositionID, emptyBoard, isDraw, placePieceS, winningBoard)
+
+updateState :: forall a.
   Ref (BGameState a) ->
   Protocol ->
-  GameEffects e Unit
-updateState state (PState transferedState) = liftEff $ modifyRef state
+  Aff Unit
+updateState state (PState transferedState) = liftEffect $ modify_
   (\s -> s {
     board = transferedState.board,
     ondeck = transferedState.ondeck,
     gameinprogress = transferedState.gameinprogress
-  })
+  }) state
 updateState _ _ = pure unit
 
 
@@ -55,34 +46,31 @@ initialTwoPlayerState = {
   channel : Nothing
 }
 
--- endGame :: forall a e. Ref (BGameState a) -> GameEffects e Unit
--- endGame state = liftEff $ modifyRef state (_ { gameinprogress = false })
-
-resetBoard :: forall a e. Ref (BGameState a) -> GameEffects e Unit
-resetBoard state = liftEff (modifyRef state (_ { ondeck = i.ondeck, board = i.board }))
+resetBoard :: forall a. Ref (BGameState a) -> Aff Unit
+resetBoard state = liftEffect (modify_ (_ { ondeck = i.ondeck, board = i.board }) state)
   where i = initialState
 
-updateBoard :: forall a e. Ref (BGameState a) -> Board -> GameEffects e Unit
-updateBoard state nboard = liftEff (modifyRef state (_ { board = nboard }))
+updateBoard :: forall a. Ref (BGameState a) -> Board -> Aff Unit
+updateBoard state nboard = liftEffect (modify_ (_ { board = nboard }) state)
 
-startGameState :: forall a e. Ref {gameinprogress :: Boolean | a} -> GameEffects e Unit
-startGameState state = liftEff $ modifyRef state (_ { gameinprogress = true } )
+startGameState :: forall a. Ref {gameinprogress :: Boolean | a} -> Aff Unit
+startGameState state = liftEffect $ modify_ (_ { gameinprogress = true } ) state
 
-stopGame :: forall a e. Ref {gameinprogress :: Boolean | a} -> GameEffects e Unit
-stopGame state = liftEff $ modifyRef state (_ { gameinprogress = false } )
+stopGame :: forall a. Ref {gameinprogress :: Boolean | a} -> Aff Unit
+stopGame state = liftEffect $ modify_ (_ { gameinprogress = false } ) state
 
-setOnDeck :: forall a e. Ref { ondeck :: Maybe PieceID | a } ->  PieceID -> GameEffects e Unit
-setOnDeck state piece = liftEff $ modifyRef state (_ { ondeck = (Just piece) })
+setOnDeck :: forall a. Ref { ondeck :: Maybe PieceID | a } ->  PieceID -> Aff Unit
+setOnDeck state piece = liftEffect $ modify_ (_ { ondeck = (Just piece) }) state
 
-twoPlayerSameTerminalGive :: forall a b e. Ref (BGameState a) ->  { piece :: PieceID | b } -> GameEffects e Unit
+twoPlayerSameTerminalGive :: forall a b. Ref (BGameState a) ->  { piece :: PieceID | b } -> Aff Unit
 twoPlayerSameTerminalGive state e = do
   setOnDeck state e.piece
   disableAvailablePieces
   givePiece e.piece
 
-twoPlayerSameTerminalPlay :: forall a b e. Ref (BGameState a) -> { position :: PositionID | b} -> GameEffects e Unit
+twoPlayerSameTerminalPlay :: forall a b. Ref (BGameState a) -> { position :: PositionID | b} -> Aff Unit
 twoPlayerSameTerminalPlay state evt = do
-  s <- liftEff $ readRef state
+  s <- liftEffect $ read state
   case (s.ondeck) of
     Just (ondeck) -> do
       let nboard = placePieceS (s.board) ondeck (evt.position)
@@ -92,70 +80,60 @@ twoPlayerSameTerminalPlay state evt = do
     _ -> pure unit
 
 
-boardEventProducer :: forall e. CR.Producer BoardEvent (GameEffects e) Unit
+boardEventProducer :: CR.Producer BoardEvent Aff Unit
 boardEventProducer = do
-  CRA.produceAff (\emit -> do
+  CRA.produceAff (\emitter -> do
     listenToBoard (\i e -> do
-      emit (Left $ { position : itemName i, event : e })
+      emit emitter ({ position : itemName i, event : e })
     )
   )
 
-pieceProducer :: forall e. CR.Producer PieceEvent (GameEffects e) Unit
+pieceProducer :: CR.Producer PieceEvent Aff Unit
 pieceProducer =
-  CRA.produceAff (\emit -> do
+  CRA.produceAff (\emitter -> do
     listenToAvailablePieces (\i e -> do
-      emit (Left $ { piece : itemName i, event : e } )
+      emit emitter ({ piece : itemName i, event : e })
     )
   )
 
-type WinHandler e a =
-  (Ref (BGameState a) ->
-  (Array Piece -> GameEffects e Unit) ->
-  GameEffects e (Maybe (Array Piece)))
+type WinHandler a =
+  Ref (BGameState a) ->
+  (Array Piece -> Aff Unit) ->
+  Aff (Maybe (Array Piece))
 
-  -- ->
-  --GameEffects e (Maybe (Array Piece)))
 
-type Driver e a = {
-  io :: HalogenIO WinMenu.Query WinMenu.Message (GameEffects e),
-  winHandler :: WinHandler e a,
+type Driver a = {
+  winHandler :: WinHandler a,
   state :: Ref (BGameState a)
 }
 
-type RemoteDriver e = Driver e TwoPlayerGameStateExt
+type RemoteDriver e = Driver TwoPlayerGameStateExt
 
 
-createDriver :: forall e a.
-  (HalogenIO WinMenu.Query WinMenu.Message (GameEffects e)) ->
+createDriver :: forall a.
   Ref (BGameState a) ->
-  (WinHandler e a) ->
-  Driver e a
-createDriver io state winHandler = { io,  winHandler, state }
+  (WinHandler a) ->
+  Driver a
+createDriver state winHandler = { winHandler, state }
 
 
-basicWinHandler :: forall e a
-   . (HalogenIO WinMenu.Query WinMenu.Message (GameEffects e))
-  -> Ref (BGameState a)
-  -> Driver e a --GameEffects e (Maybe (Array Piece))
-basicWinHandler io state = createDriver io state \_ onwin -> do
-  s <- liftEff $ readRef state
+basicWinHandler :: forall a.
+  Ref (BGameState a)
+  -> Driver a
+basicWinHandler state = createDriver state \_ onwin -> do
+  s <- liftEffect $ read state
 
   let draw = isDraw s.board
   case draw of
     true -> do
       hideMessage
       stopGame state
-      void $ io.query (H.action WinMenu.QSetDraw)
-    false -> pure unit
-
-  guard $ draw == false
-
-  let mwinner = winningBoard s.board
-  case mwinner of
-    Nothing -> pure Nothing
-    (Just winner) -> do
-      onwin winner
-      stopGame state
-      void $ io.query (H.action WinMenu.QShow)
-      void $ io.query (H.action (WinMenu.QSetWinner winner))
-      pure $ Just winner
+      pure Nothing
+    false -> do
+      let mwinner = winningBoard s.board
+      case mwinner of
+        Nothing -> pure Nothing
+        (Just winner) -> do
+          onwin winner
+          stopGame state
+          pure $ Just winner

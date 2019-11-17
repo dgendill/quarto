@@ -1,20 +1,25 @@
 module DataTypes where
 
 import Prelude
+
 import Control.Alt (alt)
-import Control.Monad.Aff (Aff)
-import Control.Monad.Eff.Class (liftEff)
-import Control.Monad.Eff.Ref (REF, Ref, readRef)
-import DOM.Event.Event (Event)
-import Data.Argonaut (class DecodeJson, class EncodeJson, JObject, Json, decodeJson, encodeJson, fromString, jsonEmptyObject, jsonParser, jsonSingletonObject, toString)
+import Data.Argonaut (class DecodeJson, class EncodeJson, Json, decodeJson, encodeJson, fromString, jsonEmptyObject, jsonParser, jsonSingletonObject, toString)
 import Data.Argonaut.Core (stringify)
 import Data.Argonaut.Decode (getField)
 import Data.Argonaut.Encode ((:=), (~>))
 import Data.Either (Either(..))
-import Data.Generic (class Generic, gShow)
+import Data.Generic.Rep (class Generic)
+import Data.Generic.Rep.Show (genericShow)
 import Data.Maybe (Maybe(..))
+import Effect.Aff (Aff)
+import Effect.Class (liftEffect)
+import Effect.Ref (Ref)
+import Effect.Ref (read) as Ref
+import Foreign.Object (Object)
 import State (Board, PieceID, PositionID)
-import WebRTC.RTC (RTCDataChannel, RTCPeerConnection)
+import Web.Event.Internal.Types (Event)
+
+-- import WebRTC.RTC (RTCDataChannel, RTCPeerConnection)
 
 -- | Who plays first and second in a game
 data PlayOrder
@@ -58,15 +63,15 @@ type GameState = BGameState ()
 -- | The row of types that extend the base game
 -- | state with the webrtc connection and data channel
 type TwoPlayerGameStateExt = (
-  connection :: Maybe RTCPeerConnection,
-  channel :: Maybe RTCDataChannel
+  connection :: Maybe Boolean,
+  channel :: Maybe Boolean
 )
 
 -- | The two player game state
 type TwoPlayerGameState = BGameState TwoPlayerGameStateExt
 
-derive instance gGameType  :: Generic GameType
-instance showGameType :: Show GameType where show = gShow
+derive instance gGameType  :: Generic GameType _
+instance showGameType :: Show GameType where show = genericShow
 
 instance encodeGameType :: EncodeJson GameType where
   encodeJson TwoPlayerSameTerminal = fromString "TwoPlayerSameTerminal"
@@ -114,62 +119,62 @@ instance encodeSendState :: EncodeJson Protocol where
     ~> jsonEmptyObject)
 
 
-instance decodeSendStateInstance :: DecodeJson Protocol where
-  decodeJson json = (decodePState json) `alt` (decodePGivePPlay json)
+-- instance decodeSendStateInstance :: DecodeJson Protocol where
+--   decodeJson json = (decodePState json) `alt` (decodePGivePPlay json)
 
 
-decodePState :: Json -> Either String Protocol
-decodePState json = do
-  obj <- decodeJson json
-  state <- getField obj "state" :: Either String JObject
-  board <- getField state "board" :: Either String Board
-  ondeck <- getField state "ondeck" :: Either String (Maybe PieceID)
-  gameinprogress <- getField state "gameinprogress" :: Either String Boolean
-  pure $ PState { ondeck, board, gameinprogress }
+-- decodePState :: Json -> Either String Protocol
+-- decodePState json = do
+--   obj <- decodeJson json
+--   state <- getField obj "state" :: Either String Object
+--   board <- getField state "board" :: Either String Board
+--   ondeck <- getField state "ondeck" :: Either String (Maybe PieceID)
+--   gameinprogress <- getField state "gameinprogress" :: Either String Boolean
+--   pure $ PState { ondeck, board, gameinprogress }
 
 
-decodePGivePPlay :: Json -> Either String Protocol
-decodePGivePPlay json = do
-  obj <- decodeJson json
-  action <- getField obj "action" :: Either String String
-  case action of
-    "ok" -> do
-      pure $ OK
-    "give" -> do
-      piece <- getField obj "piece" :: Either String PieceID
-      pure $ PGive piece
-    "play" -> do
-      position <- getField obj "position" :: Either String PositionID
-      pure $ PPlay position
-    "startnewgame" -> do
-      pure $ StartNewGame
-    _ -> Left $ "Did not recognize action" <> action
+-- decodePGivePPlay :: Json -> Either String Protocol
+-- decodePGivePPlay json = do
+--   obj <- decodeJson json
+--   action <- getField obj "action" :: Either String String
+--   case action of
+--     "ok" -> do
+--       pure $ OK
+--     "give" -> do
+--       piece <- getField obj "piece" :: Either String PieceID
+--       pure $ PGive piece
+--     "play" -> do
+--       position <- getField obj "position" :: Either String PositionID
+--       pure $ PPlay position
+--     "startnewgame" -> do
+--       pure $ StartNewGame
+--     _ -> Left $ "Did not recognize action" <> action
 
 
-encodeState :: TwoPlayerGameState -> String
-encodeState p = encodeProtocol $
-  PState { board : p.board, ondeck : p.ondeck, gameinprogress : p.gameinprogress }
+-- encodeState :: TwoPlayerGameState -> String
+-- encodeState p = encodeProtocol $
+--   PState { board : p.board, ondeck : p.ondeck, gameinprogress : p.gameinprogress }
 
 
-encodeStateRef :: forall e. Ref (TwoPlayerGameState) -> Aff (ref :: REF | e) String
-encodeStateRef r = (liftEff $ readRef r) >>= \p -> pure $ encodeProtocol $
-  PState { board : p.board, ondeck : p.ondeck, gameinprogress : p.gameinprogress }
+-- encodeStateRef :: forall e. Ref (TwoPlayerGameState) -> Aff String
+-- encodeStateRef r = (liftEffect $ Ref.read r) >>= \p -> pure $ encodeProtocol $
+--   PState { board : p.board, ondeck : p.ondeck, gameinprogress : p.gameinprogress }
 
 
-encodeGive :: PieceID -> String
-encodeGive piece = encodeProtocol $ PGive piece
+-- encodeGive :: PieceID -> String
+-- encodeGive piece = encodeProtocol $ PGive piece
 
 
-encodePlay :: PositionID -> String
-encodePlay position = encodeProtocol $ PPlay position
+-- encodePlay :: PositionID -> String
+-- encodePlay position = encodeProtocol $ PPlay position
 
 
-encodeProtocol :: Protocol -> String
-encodeProtocol = (stringify <<< encodeJson)
+-- encodeProtocol :: Protocol -> String
+-- encodeProtocol = (stringify <<< encodeJson)
 
 
-decodeProtocol :: String -> Either String Protocol
-decodeProtocol string = do
-  ss <- (jsonParser string)
-  p <- (decodeJson ss :: Either String Protocol)
-  pure p
+-- decodeProtocol :: String -> Either String Protocol
+-- decodeProtocol string = do
+--   ss <- (jsonParser string)
+--   p <- (decodeJson ss :: Either String Protocol)
+--   pure p

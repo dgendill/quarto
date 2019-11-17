@@ -1,33 +1,33 @@
 'use strict';
 
 exports.animatePieceToPosition_ = function(pieceId, positionId) {
-  return function(success, error) {
+  return function(error, success) {
     Game.Animation.animatePieceToPosition(pieceId, positionId, function() {
-      success({});
+      success();
     });
   }
 }
 
 exports.animatePieceToAbsPosition_ = function(pieceId, x, y) {
-  return function(success, error) {
+  return function(error, success) {
     Game.Animation.animatePieceToAbsPositionXY(pieceId, x, y, function() {
-      success({});
+      success();
     });
   }
 }
 
 exports.animatePieceToDeck_ = function(pieceId) {
-  return function(success, error) {
+  return function(error, success) {
     Game.Animation.animatePieceToDeck(pieceId, function() {
-      success({});
+      success();
     });
   }
 }
 
 exports.animatePieceToHome_ = function(pieceId) {
-  return function(success, error) {
+  return function(error, success) {
     Game.Animation.animatePieceToHome(pieceId, function() {
-      success({});
+      success();
     });
   }
 }

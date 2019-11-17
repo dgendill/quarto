@@ -1,84 +1,102 @@
 'use strict';
 
-exports.init = function(success, error) {
-  Game.init(success);
-}
+const _id = function() {};
+const _cancelSuccess = function (cancelError, cancelerError, cancelerSuccess) {
+  cancelerSuccess();
+};
 
-exports.newGame = function(success, error) {
+exports.init_ = function (onError, onSuccess) {
+  console.log(onError, onSuccess);
+  Game.init(onSuccess);
+  return _cancelSuccess;
+};
+
+
+exports.newGame_ = function(error, success) {
     Game.newGame();
-    success({});
+    success();
 }
 
-exports.drawBoard_ = function() {
-  return function(success, error) {
-    Game.Board.drawBoard();
-    success({});
-  }
+exports.drawBoard_ = function(onError, onSuccess) {
+  Game.Board.drawBoard();
+  onSuccess();
+  return _cancelSuccess;
 }
 
-exports.listenToBoard_ = function(fn) {
-  return function(success, error) {
+exports.listenToBoard_ = function(fn, affHandler) {
+  return function(onError, onSuccess) {
     Game.Board.drawBoard(function(shape, event) {
       var cb = fn(shape, event);
-      cb(function() {}, function() {});
+      affHandler(cb)();
     });
-    success({});
+    onSuccess();
+
+    return _cancelSuccess;
+
   }
 }
 
-exports.showMessage = function(message) {
-  return function(success, error) {
+exports.showMessage_ = function(message) {
+  return function(error, success) {
     Game.AvailablePieces.showMessage(message);
-    success({});
+    success();
   }
 }
 
-exports.hideMessage = function(success, error) {
+exports.hideMessage_ = function(error, success) {
   Game.AvailablePieces.hideMessage();
-  success({});
+  success();
 }
 
-exports.createMainMenu_ = function(callback) {
-  return function(success, error) {
+exports.createMainMenu_ = function(callback, affHandler) {
+  return function(onError, onSuccess) {
     Game.createMainMenu(function(eventType) {
-      callback(eventType)(function() {});
+      var r = callback(eventType);
+      affHandler(r)();
     });
-    success({});
+    onSuccess();
+    return _cancelSuccess;
   }
 }
 
-exports.itemName_ = function() {
-  return Game.itemName.apply(this, arguments);
+exports.itemName_ = function(item) {
+  return Game.itemName.apply(this, [item]);
 }
 
-exports.loadAssets_ = function(srcs, ids, success, error) {
-  return function() {
+exports.loadAssets_ = function(srcs, ids) {
+  return function(onError, onSuccess) {
+
     Game.Assets.load(srcs, ids, function(images) {
-      success(images)();
-    }, error);
-  }
-}
-
-exports.listenToAvailablePieces_ = function(fn) {
-  return function (success, error) {
-    Game.AvailablePieces.drawAvailablePieces(function(item, event) {
-      var cb = fn(item, event);
-      cb(function() {});
+      console.log('Game.Assets.Load');
+      onSuccess(images);
     });
-    success({});
+    return _cancelSuccess;
   }
 }
 
-exports.drawAvailablePieces_ = function() {
-  return function (success, error) {
-    Game.AvailablePieces.drawAvailablePieces();
-    success({});
+exports.listenToAvailablePieces_ = function(fn, affHandler) {
+  return function (error, success) {
+    Game.AvailablePieces.drawAvailablePieces(function(item, event) {
+
+      var cb = fn(item, event);
+      affHandler(cb)();
+
+    });
+    success();
   }
 }
 
-exports.drawAvailablePiecesLayout = function (success, error) {
+exports.drawAvailablePieces_ = function (onError, onSuccess) {
+  Game.AvailablePieces.drawAvailablePieces();
+  onSuccess();
+  return _cancelSuccess;
+}
+
+
+exports.drawAvailablePiecesLayout_ = function(onError, onSuccess) {
   Game.AvailablePieces.drawLayout();
-  success({});
+  onSuccess();
+  return _cancelSuccess;
 }
 
 exports.getPaperItem_ = function(project_, name, just, nothing) {
@@ -98,28 +116,31 @@ exports.getPaperProject = function(canvas) {
 }
 
 exports.showPaperItem = function(item) {
-  return function(success, error) {
+  return function(onError, onSuccess) {
     item.visible = true;
-    success();
+    onSuccess();
+    return _cancelSuccess;
   }
 }
 
 exports.hidePaperItem = function(item) {
-  return function(success, error) {
+  return function(onError, onSuccess) {
     item.visible = false;
-    success();
+    onSuccess();
+    return _cancelSuccess;
   }
 }
 
 exports.movePaperItem_ = function(x, y, item) {
-  return function(success, error) {
+  return function(onError, onSuccess) {
     item.position = new Point(x, y);
-    success();
+    onSuccess();
+    return _cancelSuccess;
   }
 }
 
 exports.movePaperItemPivot_ = function(pivot, x, y, item) {
-  return function(success, error) {
+  return function(error, success) {
     var xx, yy;
     var width = item.bounds.topRight.x - item.bounds.topLeft.x;
     var height = item.bounds.bottomLeft.y - item.bounds.topLeft.y;
@@ -162,8 +183,8 @@ exports.movePaperItemPivot_ = function(pivot, x, y, item) {
 }
 
 
-exports.addMiniPiecesTo = function(project_) {
-  return function(success, error) {
+exports.addMiniPiecesTo_ = function(project_) {
+  return function(error, success) {
     Game.AvailablePieces.addMiniPiecesTo(project_);
     success();
   }

@@ -9,20 +9,21 @@ module Util (
   ) where
 
 import Prelude
-import Data.Array as Array
-import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Random (RANDOM, randomInt)
+
+import Effect.Random (randomInt)
 import Data.Array (foldl, head, snoc, tail)
+import Data.Array as Array
 import Data.Maybe (Maybe(..))
 import Data.Ord (greaterThan)
 import Data.Tuple (Tuple(..), fst, snd)
+import Effect (Effect)
 
 -- | Alias for const $ pure unit
 doNothing :: forall a b. (Applicative b) => a -> b Unit
 doNothing = const $ pure unit
 
 -- | Maybe get a random element from a set
-randomElement :: forall e a. Array a -> Eff (random :: RANDOM | e) (Maybe a)
+randomElement :: forall a. Array a -> Effect (Maybe a)
 randomElement points
   | Array.length points == 0 = pure $ Nothing
   | otherwise = do

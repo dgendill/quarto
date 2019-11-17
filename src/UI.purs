@@ -5,14 +5,16 @@ module UI (
   ) where
 
 import Prelude
-import Control.Coroutine as CR
+
 import Control.Coroutine (Consumer)
-import Control.Monad.Eff.Ref (Ref)
+import Control.Coroutine as CR
 import Control.Monad.Trans.Class (lift)
-import DOM.Event.Event (Event, type_)
 import Data.Newtype (unwrap)
-import Effects (GameEffects)
 import DataTypes (BEvent, BGameState)
+import Effect.Aff (Aff)
+import Effect.Ref (Ref)
+import Web.Event.Event (type_)
+import Web.Event.Internal.Types (Event)
 
 -- | Return the event type of the
 -- | Event.
@@ -22,17 +24,20 @@ getEventType e = unwrap (type_ e.event)
 -- | A consumer of "click" events that calls a callback
 -- | when clicks happen.  The callback
 -- | is passed the GameState and the Event.
-onClick :: forall a b c e. Ref (BGameState b) -> (Ref (BGameState b) -> BEvent a -> (GameEffects e) c) -> Consumer { event :: Event | a } (GameEffects e) c
+onClick :: forall a b c
+   . Ref (BGameState b)
+  -> (Ref (BGameState b) -> BEvent a -> Aff c)
+  -> Consumer { event :: Event | a } Aff c
 onClick = onEvent "click"
 
 -- | A consumer of events that calls a callback
 -- | when a particular event is consumed.  The callback
 -- | is passed the GameState and the Event.
-onEvent :: forall a b c e
+onEvent :: forall a b c
    . String
   -> Ref (BGameState b)
-  -> (Ref (BGameState b) -> BEvent a -> (GameEffects e) c)
-  -> Consumer { event :: Event | a } (GameEffects e) c
+  -> (Ref (BGameState b) -> BEvent a -> Aff c)
+  -> Consumer { event :: Event | a } Aff c
 onEvent name state callback = go
   where
   go = do

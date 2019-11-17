@@ -3,40 +3,30 @@ module GameLoop (
   ) where
 
 import Prelude
-import Control.Coroutine as CR
-import Halogen.Aff as HA
-import QHalogen.WinMenu as WinMenu
+
 import AI (bestGive, bestPlay, getPoint, getPoint')
 import Actions (givePiece, playPiece')
-import Control.Coroutine (Process, consumer, pullFrom)
-import Control.Monad.Aff (Aff, attempt)
-import Control.Monad.Aff.Console (CONSOLE, log)
-import Control.Monad.Eff.Class (liftEff)
-import Control.Monad.Eff.Exception (EXCEPTION)
-import Control.Monad.Eff.Ref (Ref, modifyRef, newRef, readRef)
+import Control.Coroutine (Process, pullFrom)
+import Control.Coroutine as CR
 import Control.Monad.Trans.Class (lift)
-import Control.MonadPlus (guard)
-import DOM.Event.Event (Event, type_)
-import DOM.Node.ParentNode (QuerySelector(..))
 import Data.Foldable (traverse_)
-import Data.Maybe (Maybe(Nothing, Just), fromJust, isNothing)
+import Data.Maybe (Maybe(Nothing, Just), isNothing)
 import Data.Newtype (unwrap)
-import Data.Traversable (traverse)
-import DataTypes (GameState, GameType(SinglePlayer, TwoPlayerSameTerminal))
-import Demo (runDemo)
-import Effects (GameEffects)
+import DataTypes (GameState, GameType(TwoPlayerSameTerminal))
+import Effect.Aff (Aff, attempt)
+import Effect.Class (liftEffect)
+import Effect.Class.Console (log)
+import Effect.Ref (Ref, modify_, new, read)
 import Game (disableAvailablePieces, enableAvailablePieces, enableBoard)
 import GameGraphics (PaperItem, hideGivePieceText, hideMessage, hidePlayPieceText, itemName, showGivePieceText, showMessage, showPlayPieceText)
-import GameLogic (Driver, basicWinHandler, boardEventProducer, initialState, initialTwoPlayerState, pieceProducer, resetBoard, setOnDeck, startGameState, twoPlayerSameTerminalGive, twoPlayerSameTerminalPlay)
-import Halogen.VDom.Driver (runUI)
+import GameLogic (Driver, basicWinHandler, boardEventProducer, initialState, pieceProducer, setOnDeck, startGameState, twoPlayerSameTerminalGive, twoPlayerSameTerminalPlay)
 import Menus (hideMainMenu, showGame)
-import Partial.Unsafe (unsafePartialBecause)
-import QHalogen.WinMenu (winMenu)
-import RemoteGameLoop (setupRemoteMenu)
 import State (pieceId, unsafePieceIdToPiece)
 import UI (onClick, onEvent)
+import Web.Event.Event (type_)
+import Web.Event.Internal.Types (Event)
 
-handlePieceEvents ::  forall e. Ref GameState -> (PaperItem -> Event -> Aff (console :: CONSOLE | e) Unit)
+handlePieceEvents :: Ref GameState -> (PaperItem -> Event -> Aff Unit)
 handlePieceEvents gs = \item evt -> do
   let pieceName = itemName item
   let eventType = unwrap (type_ evt)
@@ -44,91 +34,70 @@ handlePieceEvents gs = \item evt -> do
   log $ eventType
 
 
-setGameType :: forall e. Ref GameState -> GameType -> GameEffects e Unit
-setGameType state t = liftEff $ modifyRef state (_ { gametype = t })
+setGameType :: Ref GameState -> GameType -> Aff Unit
+setGameType state t = liftEffect $ modify_ (_ { gametype = t }) state 
 
 
-mainMenuHandler :: forall e. String -> GameEffects (err :: EXCEPTION | e) Unit
+mainMenuHandler :: String -> Aff Unit
 mainMenuHandler e = do
-
-  io <- ((HA.selectElement (QuerySelector "#win-screen")) >>= (traverse (runUI winMenu unit))) >>= (\m -> do
-          pure $ unsafePartialBecause "#win-screen is assumed to always be there" (fromJust m)
-        )
 
   case e of
     "new-game" -> do
-      state <- liftEff $ newRef initialState
+      state <- liftEffect $ new initialState
       hideMainMenu
       showGame
       setGameType state TwoPlayerSameTerminal
       startGameState state
       showGivePieceText
 
-      let driver = basicWinHandler io state -- (\s w -> pure unit)
+      let driver = basicWinHandler state
       let startGame = (CR.runProcess (twoPlayerSameTerminalGameLoop driver))
 
-      io.subscribe (consumer (\message -> do
-        case message of
-          (WinMenu.PlayAgain) -> do
-            resetBoard state
-            startGameState state
-            void $ attempt startGame
-            pure $ Nothing
-          (WinMenu.MainMenu) -> do
-            resetBoard state
-            pure $ Just unit
-          (WinMenu.Winner set) -> do
-            showMessage "We have a winner!"
-            pure $ Nothing
-      ))
-
       void $ attempt startGame
       pure unit
 
-    "new-game-remote" -> do
-      hideMainMenu
-      state <- liftEff $ newRef initialTwoPlayerState
-      let driver = basicWinHandler io state -- (\s w -> pure unit)
-      setupRemoteMenu driver
-    "new-game-single-player" -> do
-      state <- liftEff $ newRef initialState
-      hideMainMenu
-      showGame
-      setGameType state SinglePlayer
-      startGameState state
-      showGivePieceText
 
-      let driver = basicWinHandler io state -- (\s w -> pure unit)
-      let startGame = (CR.runProcess (singlePlayerGameLoop driver))
+    -- "new-game-remote" -> do
+    --   hideMainMenu
+    --   state <- liftEffect $ new initialTwoPlayerState
+    --   let driver = basicWinHandler io state -- (\s w -> pure unit)
+    --   setupRemoteMenu driver
+    -- "new-game-single-player" -> do
+    --   state <- liftEffect $ new initialState
+    --   hideMainMenu
+    --   showGame
+    --   setGameType state SinglePlayer
+    --   startGameState state
+    --   showGivePieceText
+    --   let driver = basicWinHandler io state -- (\s w -> pure unit)
+    --   let startGame = (CR.runProcess (singlePlayerGameLoop driver))
+    --   io.subscribe (consumer (\message -> do
+    --     case message of
+    --       (WinMenu.PlayAgain) -> do
+    --         resetBoard state
+    --         startGameState state
+    --         void $ attempt startGame
+    --         pure $ Nothing
+    --       (WinMenu.MainMenu) -> do
+    --         resetBoard state
+    --         pure $ Just unit
+    --       (WinMenu.Winner set) -> do
+    --         pure $ Nothing
+    --   ))
+    --   void $ attempt startGame
+    --   pure unit
+    -- "how-to-play" -> do
+    --   hideMainMenu
+    --   showGame
+    --   hideGivePieceText
+    --   runDemo
 
-      io.subscribe (consumer (\message -> do
-        case message of
-          (WinMenu.PlayAgain) -> do
-            resetBoard state
-            startGameState state
-            void $ attempt startGame
-            pure $ Nothing
-          (WinMenu.MainMenu) -> do
-            resetBoard state
-            pure $ Just unit
-          (WinMenu.Winner set) -> do
-            pure $ Nothing
-      ))
+    _ -> log $ "Bad input: " <> e <> " is not handled in main menu handler."
 
-      void $ attempt startGame
-      pure unit
 
-    "how-to-play" -> do
-      hideMainMenu
-      showGame
-      hideGivePieceText
-      runDemo
-
-    _ -> log "Bad input"
-
-twoPlayerSameTerminalGameLoop :: forall e a
-   . Driver e a
-  -> Process (GameEffects e) Unit
+twoPlayerSameTerminalGameLoop :: forall a
+   . Driver a
+  -> Process Aff Unit
 twoPlayerSameTerminalGameLoop driver = do
   let state = driver.state
   pullFrom (onClick state (\_ event -> do
@@ -145,18 +114,18 @@ twoPlayerSameTerminalGameLoop driver = do
     pure unit
   ) boardEventProducer
 
-  -- s <- lift $ liftEff $ readRef state
   ww <- lift $ driver.winHandler state (\_ ->
     showMessage "You win!"
   )
 
-  lift $ guard (isNothing ww)
+  if (isNothing ww)
+    then twoPlayerSameTerminalGameLoop driver
+    else pure unit
 
-  twoPlayerSameTerminalGameLoop driver
 
-singlePlayerGameLoop :: forall e a
-   . Driver e a
-  -> Process (GameEffects e) Unit
+singlePlayerGameLoop :: forall a
+   . Driver a
+  -> Process Aff Unit
 singlePlayerGameLoop driver = do
   let state = driver.state
   pullFrom (onClick state (\_ event -> do
@@ -167,11 +136,11 @@ singlePlayerGameLoop driver = do
     givePiece event.piece
   )) pieceProducer
 
-  s <- lift $ liftEff $ readRef state
+  s <- lift $ liftEffect $ read state
 
   traverse_ (\ondeck' -> do
     let ondeck = unsafePieceIdToPiece ondeck'
-    play <- lift $ liftEff $ bestPlay s.board ondeck
+    play <- lift $ liftEffect $ bestPlay s.board ondeck
     case play of
       Just p -> do
         lift $ playPiece' (getPoint p) ondeck
@@ -182,12 +151,12 @@ singlePlayerGameLoop driver = do
           showMessage "You lose!"
         )
 
-        lift $ guard (isNothing w)
+        lift $ when (isNothing w) $ do pure unit
 
         lift $ enableAvailablePieces
 
-        ss <- lift $ liftEff $ readRef state
-        mgive <- lift $ liftEff $ bestGive ss.board
+        ss <- lift $ liftEffect $ read state
+        mgive <- lift $ liftEffect $ bestGive ss.board
 
         lift $ traverse_ (\piece -> do
           setOnDeck state (pieceId piece)
@@ -211,7 +180,7 @@ singlePlayerGameLoop driver = do
           showMessage "You win!"
         )
 
-        lift $ guard (isNothing ww)
+        lift $ when (isNothing ww) $ pure unit
 
         singlePlayerGameLoop driver
 

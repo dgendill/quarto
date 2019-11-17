@@ -5,11 +5,18 @@ module Menus (
     hideGame
   ) where
 
+import Effect.Aff (Aff)
+import Effect.Aff.Compat (EffectFnAff(..), fromEffectFnAff)
 import Prelude (Unit)
-import Control.Monad.Aff (Aff)
 
-foreign import showMainMenu :: forall e. Aff e Unit
-foreign import hideMainMenu :: forall e. Aff e Unit
+foreign import showMainMenu_ :: EffectFnAff Unit
+showMainMenu = fromEffectFnAff showMainMenu_
 
-foreign import showGame :: forall e. Aff e Unit
-foreign import hideGame :: forall e. Aff e Unit
+foreign import hideMainMenu_ :: EffectFnAff Unit
+hideMainMenu = fromEffectFnAff hideMainMenu_
+
+foreign import showGame_ :: EffectFnAff Unit
+showGame = fromEffectFnAff showGame_
+
+foreign import hideGame_ :: EffectFnAff Unit
+hideGame = fromEffectFnAff hideGame_

@@ -1,21 +1,30 @@
 'use strict';
 
-exports.enableAvailablePieces = function(success, fail) {
+const _id = function() {};
+const _cancelSuccess = function (cancelError, cancelerError, cancelerSuccess) {
+  cancelerSuccess();
+};
+
+exports.enableAvailablePieces_ = function(fail, success) {
     Game.AvailablePieces.enable();
-    success({})
+    success();
+    return _cancelSuccess;
 }
 
-exports.disableAvailablePieces = function(success, fail) {
+exports.disableAvailablePieces_ = function(fail, success) {
     Game.AvailablePieces.disable();
-    success({})
+    success();
+    return _cancelSuccess;
 }
 
-exports.enableBoard = function(success, fail) {
+exports.enableBoard_ = function(fail, success) {
     Game.Board.enable();
-    success({})
+    success();
+    return _cancelSuccess;
 }
 
-exports.disableBoard = function(success, fail) {
+exports.disableBoard_ = function(fail, success) {
     Game.Board.disable();
-    success({})
+    success();
+    return _cancelSuccess;
 }

@@ -2,20 +2,20 @@ const webpack = require('webpack'); //to access built-in plugins
 const path = require('path');
 
 module.exports = {
-  entry: './js/canvas/Game.js',
+  entry: './output/Main/index.js',
   target: 'web',
   output: {
-    filename: 'paper-webpack-bundle.js',
+    filename: 'app.js',
     path: path.resolve(__dirname, 'dist'),
-    sourceMapFilename: 'paper-webpack-bundle.js.map',
-    library: "Game",
+    sourceMapFilename: 'app.js.map',
+    library: "PSGame",
     libraryTarget: "var"
   },
   externals: {
-		'./node/window.js': 'window',
-		'./node/extend.js': 'function(){}',
-    'paper' : true
-	},
+	// './node/window.js': 'window',
+	// /node/extend.js': 'function(){}',
+    // 'paper' : true
+  },
   devtool : "#source-map"
   // resolve: {
   //   modules: ['bower_components'],

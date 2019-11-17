@@ -5,28 +5,28 @@ module Actions (
     playPiece'
   ) where
 
-import Prelude (Unit)
-import Control.Monad.Aff (Aff)
+import Prelude
 import Data.Function.Uncurried (Fn1, Fn2, runFn1, runFn2)
-import GameGraphics (GRAPHICS)
+import Effect.Aff (Aff)
+import Effect.Aff.Compat (fromEffectFnAff, EffectFnAff)
 import State (Piece, PieceID, Point, PositionID, pieceId, pointId)
 
-foreign import givePiece_ :: forall e. Fn1 PieceID (Aff (graphics :: GRAPHICS | e) Unit)
+foreign import givePiece_ :: Fn1 PieceID (EffectFnAff Unit)
 
 -- | Graphicly give a piece (ids)
-givePiece :: forall e. PieceID -> (Aff (graphics :: GRAPHICS | e) Unit)
-givePiece = runFn1 givePiece_
+givePiece :: PieceID -> (Aff Unit)
+givePiece p = fromEffectFnAff $ runFn1 givePiece_ p
 
 -- | Graphicly give a piece (ADTs)
-givePiece' :: forall e. Piece -> (Aff (graphics :: GRAPHICS | e) Unit)
+givePiece' :: Piece -> (Aff Unit)
 givePiece' piece = givePiece (pieceId piece)
 
-foreign import playPiece_ :: forall e. Fn2 PositionID PieceID (Aff (graphics :: GRAPHICS | e) Unit)
+foreign import playPiece_ :: Fn2 PositionID PieceID (EffectFnAff Unit)
 
 -- | Graphicly play a piece (ids)
-playPiece :: forall e. PositionID -> PieceID -> (Aff (graphics :: GRAPHICS | e) Unit)
-playPiece = runFn2 playPiece_
+playPiece :: PositionID -> PieceID -> (Aff Unit)
+playPiece pid piece = fromEffectFnAff $ runFn2 playPiece_ pid piece
 
 -- | Graphicly play a piece (ADTs)
-playPiece' :: forall e. Point -> Piece -> (Aff (graphics :: GRAPHICS | e) Unit)
+playPiece' :: Point -> Piece -> (Aff Unit)
 playPiece' point piece = playPiece (pointId point) (pieceId piece)

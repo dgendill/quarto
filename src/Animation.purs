@@ -5,20 +5,29 @@ module Animation (
     animatePieceToAbsPosition
   ) where
 
-import Prelude (Unit)
-import Control.Monad.Aff (Aff)
+import Prelude
+
 import Data.Function.Uncurried (Fn1, Fn2, Fn3, runFn1, runFn2, runFn3)
-import GameGraphics (GRAPHICS)
+import Effect.Aff (Aff)
+import Effect.Aff.Compat (EffectFnAff, fromEffectFnAff)
 import State (PieceID, PositionID)
 
-foreign import animatePieceToHome_ :: forall e. Fn1 PieceID (Aff (graphics :: GRAPHICS | e) Unit)
-animatePieceToHome = runFn1 animatePieceToHome_
+foreign import animatePieceToHome_ :: Fn1 PieceID (EffectFnAff Unit)
 
-foreign import animatePieceToPosition_ :: forall e. Fn2 PieceID PositionID (Aff (graphics :: GRAPHICS | e) Unit)
-animatePieceToPosition = runFn2 animatePieceToPosition_
+animatePieceToHome :: PieceID -> Aff Unit
+animatePieceToHome = fromEffectFnAff <<< runFn1 animatePieceToHome_
 
-foreign import animatePieceToDeck_ :: forall e. Fn1 PieceID (Aff (graphics :: GRAPHICS | e) Unit)
-animatePieceToDeck = runFn1 animatePieceToDeck_
+foreign import animatePieceToPosition_ :: Fn2 PieceID PositionID (EffectFnAff Unit)
 
-foreign import animatePieceToAbsPosition_ :: forall e. Fn3 PieceID Int Int (Aff (graphics :: GRAPHICS | e) Unit)
-animatePieceToAbsPosition = runFn3 animatePieceToAbsPosition_
+animatePieceToPosition :: PieceID -> PositionID -> Aff Unit
+animatePieceToPosition a b = fromEffectFnAff $ runFn2 animatePieceToPosition_ a b
+
+foreign import animatePieceToDeck_ :: Fn1 PieceID (EffectFnAff Unit)
+
+animatePieceToDeck :: String -> Aff Unit
+animatePieceToDeck = fromEffectFnAff <<< runFn1 animatePieceToDeck_
+
+foreign import animatePieceToAbsPosition_ :: Fn3 PieceID Int Int (EffectFnAff Unit)
+
+animatePieceToAbsPosition :: String -> Int -> Int -> Aff Unit
+animatePieceToAbsPosition a b c = fromEffectFnAff $ runFn3 animatePieceToAbsPosition_ a b c

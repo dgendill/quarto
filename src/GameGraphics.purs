@@ -2,10 +2,8 @@ module GameGraphics (
     PivotPosition(..),
     PaperItem,
     PaperProject,
-    GRAPHICS,
     getPaperProject,
     getPaperItem,
-    AffGraphics,
     addMiniPiecesTo,
     hideMessage,
     showMessage,
@@ -26,27 +24,23 @@ module GameGraphics (
     drawAvailablePieces,
     drawAvailablePiecesLayout,
     drawBoard,
-    init,
-    pieceAssets
+    pieceAssets,
+    init
   ) where
 
-import Prelude (
-    class Show, Unit, show, (<>), map
-  )
-import Control.Monad.Aff (Aff, makeAff)
-import Control.Monad.Eff (Eff, kind Effect)
-import Control.Monad.Eff.Exception (Error)
-import DOM.Event.Event (Event)
-import DOM.HTML.Types (HTMLCanvasElement)
-import Data.Foldable (traverse_)
-import Data.Function.Uncurried (Fn0, Fn1, Fn2, Fn3, Fn4, mkFn1, mkFn2, runFn0, runFn1, runFn3, runFn4)
-import Data.Maybe (Maybe(..))
-import Data.StrMap (StrMap)
-import Graphics.Canvas (CanvasImageSource)
-import State (Piece, makePieces, miniPieceId, pieceImage)
+import Prelude
 
--- | Effect for graphics using PaperJS
-type AffGraphics e a = Aff (graphics :: GRAPHICS | e) a
+import Data.Function.Uncurried (Fn1, Fn2, Fn3, Fn4, mkFn1, mkFn2, runFn1, runFn2, runFn3, runFn4)
+import Data.Maybe (Maybe(..))
+import Effect (Effect)
+import Effect.Aff (Aff, runAff_)
+import Effect.Aff.Compat (EffectFnAff, fromEffectFnAff)
+import Effect.Console (logShow)
+import Foreign.Object (Object)
+import Graphics.Canvas (CanvasImageSource)
+import State (makePieces, pieceImage)
+import Web.Event.Event (Event)
+import Web.HTML.HTMLCanvasElement (HTMLCanvasElement)
 
 -- | Possible pivot positions in PaperJS
 data PivotPosition
@@ -71,109 +65,129 @@ instance showPivotPosition :: Show PivotPosition where
 
 foreign import data PaperItem :: Type
 foreign import data PaperProject :: Type
-foreign import data GRAPHICS :: Effect
 
-foreign import itemName_ :: Fn1 PaperItem String
+
+-- | Initialize the paper scope
+foreign import init_ :: EffectFnAff Unit
+init :: Aff Unit
+init = fromEffectFnAff init_
+
 
 -- | Given a PaperJS item, get it's name
 itemName :: PaperItem -> String
 itemName = runFn1 itemName_
+foreign import itemName_ :: Fn1 PaperItem String
 
 foreign import getPaperProject :: HTMLCanvasElement -> PaperProject
 
-foreign import getPaperItem_ :: forall a. Fn4 PaperProject String (a -> Maybe a) (Maybe a) (Maybe PaperItem)
 
 -- | Given a PaperJS project (there can be multiple on the page)
 -- | and an item name, attempt to get the item
 getPaperItem :: PaperProject -> String -> (Maybe PaperItem)
 getPaperItem project name = runFn4 getPaperItem_ project  name Just Nothing
+foreign import getPaperItem_ :: forall a. Fn4 PaperProject String (a -> Maybe a) (Maybe a) (Maybe PaperItem)
 
-foreign import showPaperItem :: forall e. PaperItem -> AffGraphics e Unit
-foreign import hidePaperItem :: forall e. PaperItem -> AffGraphics e Unit
+foreign import showPaperItem :: PaperItem -> EffectFnAff Unit
+foreign import hidePaperItem :: PaperItem -> EffectFnAff Unit
 
-foreign import movePaperItem_ :: forall e. Fn3 Int Int PaperItem (AffGraphics e Unit)
+foreign import movePaperItem_ :: Fn3 Int Int PaperItem (EffectFnAff Unit)
 
 -- | Move a paper item to point x y using the defalt
 -- | center pivot point
-movePaperItem :: forall e. Int -> Int -> PaperItem -> (AffGraphics e Unit)
-movePaperItem = runFn3 movePaperItem_
+movePaperItem :: Int -> Int -> PaperItem -> (Aff Unit)
+movePaperItem a b c = fromEffectFnAff $ runFn3 movePaperItem_ a b c
 
-foreign import movePaperItemPivot_ :: forall e. Fn4 String Int Int PaperItem (AffGraphics e Unit)
+foreign import movePaperItemPivot_ :: forall e. Fn4 String Int Int PaperItem (EffectFnAff Unit)
 
 -- | Move a paper item to point x y, but position it using
 -- | a specific pivot point.
-movePaperItemPivot :: forall e. PivotPosition -> Int -> Int -> PaperItem -> (AffGraphics e Unit)
-movePaperItemPivot pp x y pi = runFn4 movePaperItemPivot_ (show pp) x y pi
+movePaperItemPivot :: PivotPosition -> Int -> Int -> PaperItem -> (Aff Unit)
+movePaperItemPivot pp x y pi = fromEffectFnAff $ runFn4 movePaperItemPivot_ (show pp) x y pi
 
--- | Initialize the paper scope
-foreign import init :: forall e. AffGraphics e Unit
 
-foreign import listenToBoard_ :: forall e a.
-  Fn1
-  (Fn2 PaperItem Event (AffGraphics e a))
-  (AffGraphics e Unit)
+foreign import listenToBoard_ :: forall a.
+  Fn2
+  (Fn2 PaperItem Event (Aff a))
+  ForeignAffHandler
+  (EffectFnAff Unit)
 
 -- | Listen for events on the game board
-listenToBoard :: forall e a. (PaperItem -> Event -> AffGraphics e a) -> (AffGraphics e Unit)
-listenToBoard fn = runFn1 listenToBoard_ (mkFn2 fn)
+listenToBoard :: forall a. (PaperItem -> Event -> Aff a) -> (Aff Unit)
+listenToBoard fn = fromEffectFnAff $ runFn2 listenToBoard_ (mkFn2 fn) foreignAffHandler
 
-foreign import drawBoard_ :: forall e. Fn0 (AffGraphics e Unit)
+foreign import drawBoard_ :: EffectFnAff Unit
 
 -- | Draw the game board
-drawBoard :: forall e. AffGraphics e Unit
-drawBoard = runFn0 drawBoard_
+drawBoard :: Aff Unit
+drawBoard = fromEffectFnAff drawBoard_
 
 -- | Graphically reset the game board, removing all pieces
 -- | and returning them to the side.
-foreign import newGame :: forall e. AffGraphics e Unit
+foreign import newGame_ :: EffectFnAff Unit
+newGame :: Aff Unit
+newGame = fromEffectFnAff newGame_
 
-showGivePieceText :: forall e. AffGraphics e Unit
+showGivePieceText :: Aff Unit
 showGivePieceText = showMessage "Choose a piece to give your opponent."
 
-showPlayPieceText :: forall e. AffGraphics e Unit
+showPlayPieceText :: Aff Unit
 showPlayPieceText = showMessage "Play your piece."
 
-hideGivePieceText :: forall e. AffGraphics e Unit
+hideGivePieceText :: Aff Unit
 hideGivePieceText = hideMessage
 
-hidePlayPieceText :: forall e. AffGraphics e Unit
+hidePlayPieceText :: Aff Unit
 hidePlayPieceText = hideMessage
 
 -- | Show a message to the user above the play area
-foreign import showMessage :: forall e. String -> AffGraphics e Unit
+foreign import showMessage_ :: String -> EffectFnAff Unit
+showMessage :: String -> Aff Unit
+showMessage = fromEffectFnAff <<< showMessage_
 
 -- | Hide a message to the user above the play area
-foreign import hideMessage :: forall e. AffGraphics e Unit
+foreign import hideMessage_ :: EffectFnAff Unit
 
-foreign import createMainMenu_ :: forall e. (Fn1 String (AffGraphics e Unit)) -> AffGraphics e Unit
+hideMessage :: Aff Unit
+hideMessage = fromEffectFnAff hideMessage_
 
-createMainMenu :: forall e. (String -> AffGraphics e Unit) -> AffGraphics e Unit
-createMainMenu fn = runFn1 createMainMenu_ (mkFn1 fn)
+type ForeignAffHandler = Fn1 (Aff Unit) (Effect Unit)
 
-foreign import loadAssets_ :: forall e. Fn4
-  (Array String)
-  (Array String)
-  ((StrMap CanvasImageSource) -> Eff (graphics :: GRAPHICS | e) Unit)
-  (Error -> Eff (graphics :: GRAPHICS | e) Unit)
-  (Eff (graphics :: GRAPHICS | e) Unit)
+foreignAffHandler :: ForeignAffHandler
+foreignAffHandler = (mkFn1 (runAff_ logShow))
 
-loadAssets :: forall e. Array String -> Array String -> (Aff (graphics :: GRAPHICS | e) (StrMap CanvasImageSource))
-loadAssets src ids = makeAff (\err s -> (runFn4 loadAssets_) src ids s err)
+foreign import createMainMenu_ :: Fn2 (Fn1 String (Aff Unit)) ForeignAffHandler (EffectFnAff Unit)
 
-foreign import listenToAvailablePieces_ :: forall e a.
-  Fn1
-  (Fn2 PaperItem Event (AffGraphics e a))
-  (AffGraphics e Unit)
+createMainMenu :: (String -> Aff Unit) -> Aff Unit
+createMainMenu fn = fromEffectFnAff $ (runFn2 createMainMenu_) (mkFn1 fn) foreignAffHandler
 
-listenToAvailablePieces :: forall e. (PaperItem -> Event -> (AffGraphics e Unit)) -> (AffGraphics e Unit)
-listenToAvailablePieces fn = runFn1 listenToAvailablePieces_ (mkFn2 fn)
 
-foreign import drawAvailablePieces_ :: forall e. Fn0 (AffGraphics e Unit)
+foreign import loadAssets_ :: Fn2 (Array String) (Array String) (EffectFnAff (Object CanvasImageSource))
 
-drawAvailablePieces :: forall e. (AffGraphics e Unit)
-drawAvailablePieces = runFn0 drawAvailablePieces_
+loadAssets :: Array String -> Array String -> Aff (Object CanvasImageSource)
+loadAssets src ids = fromEffectFnAff $ (runFn2 loadAssets_) src ids
 
-foreign import drawAvailablePiecesLayout :: forall e. AffGraphics e Unit
+-- makeAff (\e -> case e of
+--     Left e -> pure unit
+--     Right s -> (runFn4 loadAssets_) src ids s)
+
+foreign import listenToAvailablePieces_ :: forall a.
+  Fn2
+  (Fn2 PaperItem Event (Aff a))
+  ForeignAffHandler
+  (EffectFnAff Unit)
+
+listenToAvailablePieces :: (PaperItem -> Event -> (Aff Unit)) -> (Aff Unit)
+listenToAvailablePieces fn = fromEffectFnAff $ runFn2 listenToAvailablePieces_ (mkFn2 fn) foreignAffHandler
+
+foreign import drawAvailablePieces_ :: EffectFnAff Unit
+
+drawAvailablePieces :: Aff Unit
+drawAvailablePieces = fromEffectFnAff drawAvailablePieces_
+
+foreign import drawAvailablePiecesLayout_ :: EffectFnAff Unit
+drawAvailablePiecesLayout :: Aff Unit
+drawAvailablePiecesLayout = fromEffectFnAff drawAvailablePiecesLayout_
+
 
 prependAssetPath :: String -> String
 prependAssetPath s = "images/" <> s
@@ -181,13 +195,6 @@ prependAssetPath s = "images/" <> s
 pieceAssets :: Array String
 pieceAssets = (map prependAssetPath (map pieceImage makePieces))
 
-showMini :: forall e. PaperProject -> Piece -> AffGraphics e Unit
-showMini project p = traverse_ showPaperItem (getPaperItem project (miniPieceId p))
-
-hideMini :: forall e. PaperProject -> Piece -> AffGraphics e Unit
-hideMini project p = traverse_ hidePaperItem (getPaperItem project (miniPieceId p))
-
-moveMini :: forall e. PaperProject -> Int -> Int -> Piece -> AffGraphics e Unit
-moveMini project x y p = traverse_ (movePaperItem x y) (getPaperItem project (miniPieceId p))
-
-foreign import addMiniPiecesTo :: forall e. PaperProject -> AffGraphics e Unit
+foreign import addMiniPiecesTo_ :: PaperProject -> EffectFnAff Unit
+addMiniPiecesTo :: PaperProject -> Aff Unit
+addMiniPiecesTo = fromEffectFnAff <<< addMiniPiecesTo_

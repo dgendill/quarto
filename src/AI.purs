@@ -1,9 +1,6 @@
 module AI where
 
 import Control.Alt ((<|>))
-import Control.Monad.Eff (Eff)
-import Control.Monad.Eff.Console (CONSOLE)
-import Control.Monad.Eff.Random (RANDOM)
 import Data.Array (all, filterA, foldM, foldMap, fromFoldable, head)
 import Data.Maybe (Maybe(Nothing, Just), isJust)
 import Data.Monoid.Additive (Additive(..))
@@ -11,7 +8,8 @@ import Data.Monoid.Conj (Conj(..))
 import Data.Newtype (unwrap)
 import Data.Ord.Max (Max(..))
 import Data.Ord.Min (Min(..))
-import Data.StrMap (empty)
+import Effect (Effect)
+import Foreign.Object (empty)
 import Prelude (class Eq, eq, class Ord, class Bounded, compare, top, bottom, (>>>), (>), ($), otherwise, map, pure, bind, (<>), (>>=), (#), (==), (>=), (<<<))
 import State (Board, Piece, Point, PositionID, countEmptySpaces, countTriples, emptyBoard, foldMapEmptySpaces, mkPoint, placePieceS', pointId, unplayedPieces, unplayedPoints, winningBoard)
 import Util (randomElement)
@@ -52,7 +50,7 @@ getPiece :: QuartoPlay -> Piece
 getPiece (QuartoPlay a _ _ _) = a
 
 -- | Get all possible plays give a board and a piece to play.
-aiGetPlays :: forall e. Board -> Piece -> Eff (random :: RANDOM | e) (Array QuartoPlay)
+aiGetPlays :: Board -> Piece -> Effect (Array QuartoPlay)
 aiGetPlays board piece
   | countEmptySpaces board > 12 = randomPlay' board piece
   | otherwise = pure $
@@ -64,7 +62,7 @@ aiGetPlays board piece
 
 -- | Choose the best play in a set of plays based on the
 -- | score of the plays
-bestPlayInSet :: forall e. Array QuartoPlay -> Eff (console :: CONSOLE | e) (Maybe QuartoPlay)
+bestPlayInSet :: Array QuartoPlay -> Effect (Maybe QuartoPlay)
 bestPlayInSet plays =
   map unwrap $ foldM (\max' play -> do
     pure $ (max' <> Max (Just play))
@@ -72,7 +70,7 @@ bestPlayInSet plays =
 
 -- | Choose the worst play in a set of plays based on the
 -- | score of the plays
-worstPlayInSet :: forall e. Array QuartoPlay -> Eff (console :: CONSOLE | e) (Maybe QuartoPlay)
+worstPlayInSet :: Array QuartoPlay -> Effect (Maybe QuartoPlay)
 worstPlayInSet plays =
   map unwrap $ foldM (\min' play -> case min' of
     (Min Nothing) -> pure $ Min (Just play)
@@ -82,7 +80,7 @@ worstPlayInSet plays =
 -- | Look ahead and see what the best give option is after a play had been made.
 -- | If the give results in a win for the other player, then filter out
 -- | that play.
-filterDeadEndPlays :: forall e. Array QuartoPlay -> Eff (console :: CONSOLE, random :: RANDOM | e) (Array QuartoPlay)
+filterDeadEndPlays :: Array QuartoPlay -> Effect (Array QuartoPlay)
 filterDeadEndPlays =
   filterA (\play -> do
     give <- bestGive (getBoard play)
@@ -92,7 +90,7 @@ filterDeadEndPlays =
   )
 
 -- | Determine what the best play is given a Board and Piece.
-bestPlay :: forall e. Board -> Piece -> Eff (console :: CONSOLE, random :: RANDOM | e) (Maybe QuartoPlay)
+bestPlay :: Board -> Piece -> Effect (Maybe QuartoPlay)
 bestPlay board piece = do
   plays <- aiGetPlays board piece
 
@@ -109,7 +107,7 @@ bestPlay board piece = do
     winner -> pure winner
 
 -- | Determine the best piece to give give a Board
-bestGive :: forall e. Board -> Eff (console :: CONSOLE, random :: RANDOM | e) (Maybe Piece)
+bestGive :: Board -> Effect (Maybe Piece)
 bestGive board = do
   let pieces = unplayedPieces board
   noWinningPlays <- foldM (\ok piece -> do
@@ -152,12 +150,12 @@ scoreBoard newBoard oldBoard = unwrap $ foldMap Additive [
 
 
 -- | Choose a random play given a board and a pice and return it in an array
-randomPlay' :: forall e. Board -> Piece -> Eff (random :: RANDOM | e) (Array QuartoPlay)
+randomPlay' :: Board -> Piece -> Effect (Array QuartoPlay)
 randomPlay' board piece = (randomPlay board piece) >>= fromFoldable >>> pure
 
 
 -- | Choose a random play given a board and a piece and return it as a maybe
-randomPlay :: forall e. Board -> Piece -> Eff (random :: RANDOM | e) (Maybe QuartoPlay)
+randomPlay :: Board -> Piece -> Effect (Maybe QuartoPlay)
 randomPlay board piece = do
   randomElement (unplayedPoints board) >>= case _ of
     Just point -> do
@@ -190,7 +188,7 @@ hasMoreTriplesThan :: Board -> Conj (Board -> Boolean)
 hasMoreTriplesThan comparisonBoard = Conj $ (\board -> (countTriples board) > (countTriples comparisonBoard))
 
 -- | Randomly choose a play for every board in the array
-chooseRandomPlay :: forall e. Array Board -> Eff (random :: RANDOM | e) (Array Board)
+chooseRandomPlay :: Array Board -> Effect (Array Board)
 chooseRandomPlay boards = randomElement boards >>= fromFoldable >>> pure
 
 -- | Given a condition and a set of plays, filter out the plays where the condition holds

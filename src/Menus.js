@@ -1,21 +1,22 @@
 'use strict';
 
-exports.showMainMenu = function(success, error) {
+exports.showMainMenu_ = function(onError, onSuccess) {
+  console.log('show main')
   Game.showMainMenu();
-  success({});
+  onSuccess();
 }
 
-exports.hideMainMenu = function(success, error) {
+exports.hideMainMenu_ = function(onError, onSuccess) {
   Game.hideMainMenu();
-  success({});
+  onSuccess();
 }
 
-exports.showGame  = function(success, error) {
+exports.showGame_  = function(onError, onSuccess) {
   Game.showGame();
-  success({});
+  onSuccess();
 }
 
-exports.hideGame = function(success, error) {
+exports.hideGame_ = function(onError, onSuccess) {
   Game.hideGame();
-  success({});
+  onSuccess();
 }

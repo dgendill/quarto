@@ -1,23 +1,21 @@
 module State where
 
 import Prelude
-import Data.Array as Array
-import Data.Generic.Rep as GR
-import Data.List as L
+
 import Control.Apply (lift3, lift4)
 import Control.Monad.Except (runExcept, throwError)
-import Data.Argonaut (class DecodeJson, class EncodeJson)
-import Data.Argonaut.Decode.Generic (gDecodeJson)
-import Data.Argonaut.Encode.Generic (gEncodeJson)
+import Data.Argonaut.Core (fromString, stringify, toString)
+import Data.Argonaut.Decode.Class (gDecodeJson, class DecodeJson, class GDecodeJson)
+import Data.Argonaut.Encode.Class (gEncodeJson, class EncodeJson, class GEncodeJson)
 import Data.Array (concat, filter, foldl, head, length, nub, reverse, snoc, sort, tail)
-import Data.Either (Either(..), either, fromRight)
-import Data.Foreign (F, Foreign, ForeignError(ForeignError), readInt, readString)
-import Data.Foreign.JSON (parseJSON)
+import Data.Array as Array
+import Data.Either (Either(..), either, fromRight, note)
 import Data.Function.Memoize (class Tabulate, memoize)
-import Data.Generic (class Generic, gShow)
+import Data.Generic.Rep as GR
 import Data.Generic.Rep.Eq (genericEq)
 import Data.Generic.Rep.Show (genericShow)
 import Data.Lazy (defer)
+import Data.List as L
 import Data.List.NonEmpty (singleton)
 import Data.Maybe (Maybe(Just, Nothing), fromMaybe, isNothing)
 import Data.Monoid (class Monoid, mempty)
@@ -25,13 +23,14 @@ import Data.Monoid.Additive (Additive(..))
 import Data.Monoid.Conj (Conj(..))
 import Data.Monoid.Disj (Disj(..))
 import Data.Newtype (class Newtype, unwrap)
-import Data.StrMap (StrMap, empty, fromFoldable, insert, lookup, member, values)
 import Data.String (Pattern(..), Replacement(..), joinWith, replace, split)
 import Data.Traversable (all, find, foldr, sequence, foldMap)
 import Data.Tuple (Tuple(Tuple))
+import Foreign (F, Foreign, ForeignError(ForeignError), readInt, readString)
+import Foreign.JSON (parseJSON)
+import Foreign.Object (Object, empty, fromFoldable, insert, lookup, member, values)
 import Partial.Unsafe (unsafePartial)
 import Util (spanN)
-
 
 data Property
   = Hollow
@@ -45,25 +44,32 @@ data Property
 
 type PieceID = String
 type PositionID = String
-type Piece = StrMap Property
+type Piece = Object Property
 type X = Int
 type Y = Int
-type Board = StrMap (Maybe Piece)
+type Board = Object (Maybe Piece)
 
 newtype Point = Point { x :: Int, y :: Int }
 newtype GPiece = GPiece Piece
 newtype GBoard = GBoard Board
 
-derive instance gProperty  :: Generic Property
+derive instance gProperty  :: GR.Generic Property _
 derive instance eqProperty :: Eq Property
 derive instance newtypePiece :: Newtype GPiece _
 derive instance gPiece :: GR.Generic GPiece _
 derive instance gRPoint :: GR.Generic Point _
 derive instance gBoard :: GR.Generic GBoard _
 
-instance showProperty :: Show Property where show = gShow
-instance encodeProperty :: EncodeJson Property where encodeJson = gEncodeJson
-instance decodeProperty :: DecodeJson Property where decodeJson = gDecodeJson
+instance showProperty :: Show Property where show = genericShow
+
+instance encodeProperty :: EncodeJson Property where encodeJson = fromString <<< propertyName -- gEncodeJson
+instance decodeProperty :: DecodeJson Property where
+  decodeJson x = do
+    str <- note ("Could not parse " <> (stringify x) <> "into a string.") $ toString x
+    pn <- note ("Could not parse " <> str <> " into a property name.") $ propertyNameToProperty str
+    pure pn
+
+
 instance semigroupProperty :: Semigroup Property where
   append p1 p2 = p1
 
@@ -478,7 +484,7 @@ allAre pieces property = unwrap $ foldMap (Conj <<< pieceIs property) pieces
 
 -- | Return all the pieces at certain points on the board.  If any of the points
 -- | are empty return Nothing.
-piecesAtPoints :: Array Point -> StrMap (Maybe Piece) -> Maybe (Array Piece)
+piecesAtPoints :: Array Point -> Object (Maybe Piece) -> Maybe (Array Piece)
 piecesAtPoints points board = case (sequence $ (lookup <$> (pointId <$> points)) <*> pure board) of
   (Just m) -> sequence m
   _ -> Nothing
@@ -517,7 +523,7 @@ countTriples board = memoize (\(GBoard board') -> countTriplesSlow board') (GBoa
 
 -- | Count the number of "triples" on the board
 countTriplesSlow :: Board -> Int
-countTriplesSlow board = unwrap $ foldMap id do
+countTriplesSlow board = unwrap $ foldMap identity do
   triple <- triples
   let matches = countMatches triple
   pure $ either (const $ Additive 0) (Additive) matches

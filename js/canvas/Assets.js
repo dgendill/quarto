@@ -1,20 +1,16 @@
-var assets = {};
-
-export var assets = assets;
+export const assets = {};
 
 export function load(srcs, ids, success, error) {
-  var images = {};
   var assetCount = srcs.length;
   var loadCount = 0;
   srcs.forEach(function(src, i) {
     var img = new Image(src);
-    images[ids[i]] = img;
+    assets[ids[i]] = img;
     img.onload = function() {
       loadCount++;
       if (loadCount == assetCount) {
-        assets = images;
         assets.ids = ids;
-        success(images);
+        success(assets);
       }
     }
 
