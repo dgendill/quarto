@@ -1,10 +1,10 @@
-Migrating from PureScript 0.12 to PureScript 0.13
+Migrating project from PureScript 0.12 to PureScript 0.13
 
 The secret to migrating an old codebase is to do it gradually piece by piece. To do that, you'll specify the specific modules you want to compile starting with the base and working your way up the dependency tree. Using spago this is accomplished by updating the "sources" attribute.
 
 ---
 
-In the past PureScript dependencies were installed with bower with package names like "purescript-aff", "purescript-canvas", "purescript-web-html", "purescript-dom-events", etc... Using spago, I've had success using only the pare after "purescript-", e.g. in spago I can install these dependencies sans "purescript-"
+In the past PureScript dependencies were installed using bower packages with names like "purescript-aff", "purescript-canvas", "purescript-web-html", "purescript-dom-events", etc... Using spago, I've had success using only the part after "purescript-", e.g. in spago I can install these dependencies sans "purescript-"
 
 dependencies =
 [

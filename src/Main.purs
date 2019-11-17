@@ -64,7 +64,7 @@ main = runAff_ logShow $ do
   drawBoard
   -- P.setup "board-base"
   drawAvailablePiecesLayout
-  -- drawAvailablePieces
+  drawAvailablePieces
   showMainMenu
   hideGame
   state <- liftEffect $ Ref.new initialTwoPlayerState

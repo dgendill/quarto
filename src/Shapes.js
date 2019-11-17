@@ -1,29 +1,29 @@
 'use strict';
 
-exports.tooltip = function(config) {
-  return function (success, error) {
+exports.tooltip_ = function(config) {
+  return function (error, success) {
     var tt = Game.Shapes.tooltip(config);
     success(tt);
   }
 }
 
-exports.labelArrow = function(config) {
-  return function (success, error) {
+exports.labelArrow_ = function(config) {
+  return function (error, success) {
     var la = Game.Shapes.labelArrow(config);
     success(la);
   }
 }
 
-exports.removeGraphicItem = function(gi) {
-  return function (success, error) {
+exports.removeGraphicItem_ = function(gi) {
+  return function (error, success) {
     gi.remove();
-    success({});
+    success();
   }
 }
 
-exports.removeGraphicItemByName = function(name) {
-  return function (success, error) {
+exports.removeGraphicItemByName_ = function(name) {
+  return function (error, success) {
     Game.Shapes.removeGraphicItemByName(name);
-    success({});
+    success();
   }
 }

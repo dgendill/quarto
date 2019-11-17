@@ -44,6 +44,8 @@ You can edit this file as you like.
         "src/**/Game.purs",
         "src/**/GameLoop.purs",
         "src/**/AI.purs",
-        "src/**/UI.purs"
+        "src/**/UI.purs",
+        "src/**/Demo.purs",
+        "src/**/Shapes.purs"
     ]
 }

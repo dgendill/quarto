@@ -10,8 +10,10 @@ module Shapes (
     GraphicItem
   ) where
 
+import Prelude
+import Data.Function.Uncurried (Fn1, runFn1)
+import Effect.Aff.Compat (EffectFnAff, fromEffectFnAff)
 import Prelude (Unit)
-import GameGraphics (AffGraphics)
 
 foreign import data GraphicItem :: Type
 
@@ -30,10 +32,14 @@ type LabelArrow =
   , content :: String
   , width :: Int }
 
-foreign import tooltip :: forall e. Tooltip -> AffGraphics e GraphicItem
+foreign import tooltip_ :: Fn1 Tooltip (EffectFnAff GraphicItem)
+tooltip tt = fromEffectFnAff $ runFn1 tooltip_ tt
 
-foreign import labelArrow :: forall e. LabelArrow -> AffGraphics e GraphicItem
+foreign import labelArrow_ :: Fn1 LabelArrow (EffectFnAff GraphicItem)
+labelArrow la =  fromEffectFnAff $ runFn1 labelArrow_ la
 
-foreign import removeGraphicItem :: forall e. GraphicItem -> AffGraphics e Unit
+foreign import removeGraphicItem_ :: Fn1 GraphicItem (EffectFnAff Unit)
+removeGraphicItem gi = fromEffectFnAff $ runFn1 removeGraphicItem_ gi
 
-foreign import removeGraphicItemByName :: forall e. String -> AffGraphics e Unit
+foreign import removeGraphicItemByName_ :: Fn1 String (EffectFnAff Unit)
+removeGraphicItemByName gin = fromEffectFnAff $ runFn1 removeGraphicItemByName_ gin

@@ -13,7 +13,8 @@ The game of Quarto.  [Try it here!](https://dgendill.com/content/quarto)
 - Todo
     - [x] Get core 2 player functionality working  
     - [ ] Reimplement the "win menu" with halogen or purescript react
-    - [ ] Get demo working
+    - [x] Get demo working
+    - [ ] Fix console errors in demo
     - [ ] Get single player mode working
     - [ ] Write foreign library for paperjs
     - [ ] Migrate all the foreign code in the js folder

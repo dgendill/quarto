@@ -9,30 +9,32 @@ module Demo (
 
 import Animation (animatePieceToDeck, animatePieceToHome, animatePieceToPosition)
 import Control.Coroutine (Consumer, Producer, await, pullFrom, runProcess)
-import Control.Coroutine.Aff (produceAff)
-import Control.Monad.Aff (Aff, forkAff)
-import Control.Monad.Aff.AVar (AVAR)
-import Control.Monad.Aff.Console (CONSOLE)
+import Control.Coroutine.Aff (close, emit, produceAff)
 import Control.Monad.Writer (lift)
 import Control.Parallel (parSequence, parSequence_)
 import Data.Array (zipWithA)
-import Data.Either (Either(..))
 import Data.Foldable (traverse_)
-import Data.Function.Uncurried (Fn4, Fn5, runFn4, runFn5)
+import Data.Function.Uncurried (Fn1, Fn5, Fn6, mkFn1, runFn5, runFn6)
 import Data.Traversable (sequence)
-import GameGraphics (GRAPHICS)
+import Effect (Effect)
+import Effect.Aff (Aff, forkAff, runAff_)
+import Effect.Aff.Compat (EffectFnAff, fromEffectFnAff)
+import Effect.Class.Console (log, logShow)
 import Menus (hideGame, showMainMenu)
 import Prelude (Unit, bind, map, pure, unit, void, ($), (*>), (>>=), discard)
 import Shapes (GraphicItem, labelArrow, removeGraphicItem, removeGraphicItemByName, tooltip)
 
-type DemoEffects e = (Aff (graphics :: GRAPHICS, avar :: AVAR, console :: CONSOLE | e))
+type ForeignAffHandler = Fn1 (Aff Unit) (Effect Unit)
 
-runDemo :: forall e. DemoEffects  e Unit
+foreignAffHandler :: ForeignAffHandler
+foreignAffHandler = (mkFn1 $ runAff_ logShow)
+
+runDemo :: Aff Unit
 runDemo = do
   slide1
   pure unit
 
-slide1 :: forall e. DemoEffects e Unit
+slide1 :: Aff Unit
 slide1 = do
   let slideGraphic = sequence $ [
       labelArrow { name : "la1", x : 310, y : 97, content : "Tall Hollow", width : 116 }
@@ -67,42 +69,45 @@ slide1 = do
           removeGraphicItemByName "nb1"
           slideGraphic >>= traverse_ removeGraphicItem
           showMainMenu *> hideGame
-        _      -> pure unit
+        _      -> do
+          log "other"
+          pure unit
     )
 
-  void $ forkAff $ runProcess $ cleanup' `pullFrom` (nextButton' "nb1" 622 260)
+  void $ forkAff $ runProcess $ pullFrom cleanup' (nextButton' "nb1" 622 260)
   void $ forkAff $ runProcess $ cleanup' `pullFrom` (prevButton' "pb1" 510 260)
 
   pure unit
 
 
-cleanup :: forall e a. (a -> DemoEffects e Unit) -> Consumer a (DemoEffects e) Unit
+cleanup :: (String -> Aff Unit) -> Consumer String Aff Unit
 cleanup cb = do
   s <- await
   lift (cb s)
 
 
-nextButtonNamed' :: forall e. String -> Int -> Int -> String -> Producer String (Aff (avar :: AVAR, graphics :: GRAPHICS | e)) Unit
-nextButtonNamed' s x y content = produceAff (\emit -> do
+nextButtonNamed' :: String -> Int -> Int -> String -> Producer String Aff Unit
+nextButtonNamed' s x y content = produceAff (\emitter -> do
     void $ nextButtonNamed s x y content (do
-      emit (Left "next")
+      emit emitter "next"
+      close emitter unit
     )
   )
 
 
-nextButton' :: forall e. String -> Int -> Int -> Producer String (Aff (avar :: AVAR, graphics :: GRAPHICS | e)) Unit
+nextButton' :: String -> Int -> Int -> Producer String Aff Unit
 nextButton' s x y = nextButtonNamed' s x y "NEXT"
 
 
-prevButton' :: forall e. String -> Int -> Int -> Producer String (Aff (avar :: AVAR, graphics :: GRAPHICS | e)) Unit
-prevButton' s x y = produceAff (\emit -> do
+prevButton' :: String -> Int -> Int -> Producer String Aff Unit
+prevButton' s x y = produceAff (\emitter -> do
     void $ prevButton s x y (do
-      emit (Left "prev")
+      emit emitter "prev"
     )
   )
 
 
-slide2 :: forall e. DemoEffects e Unit
+slide2 :: Aff Unit
 slide2 = do
   parSequence_
     [ animatePieceToPosition "id-Dark-Tall-Square-Hollow" "4,4"
@@ -145,14 +150,14 @@ slide2 = do
             y : 146,
             width : 270,
             height : 140,
-            content :  """The goal of the game is to get
+            content :  """The goal is to get
 four similar pieces in a row. For
 instance, four dark pieces in a
 row..."""
         }
       ]
 
-slide3 :: forall e. DemoEffects e Unit
+slide3 :: Aff Unit
 slide3 = do
   let pieces = [
     "id-Dark-Tall-Square-Hollow",
@@ -169,8 +174,9 @@ slide3 = do
           width : 310,
           height : 140,
           content :  """Or four square pieces in a row.
-Any four pieces that have the same
-characteristics can win."""
+All pieces in a winning row must
+have a matching characteristic to
+win."""
       }
     ]
 
@@ -198,7 +204,7 @@ characteristics can win."""
   void $ forkAff $ runProcess $ cleanup' `pullFrom` (nextButton' "nb3" 622 260)
   void $ zipWithA (\a b -> forkAff $ animatePieceToPosition a b) pieces ["1,4","2,4","3,4","4,4"]
 
-slide4 :: forall e. DemoEffects e Unit
+slide4 :: Aff Unit
 slide4 = do
   let piece = "id-Dark-Tall-Square-Hollow"
   void $ animatePieceToDeck piece
@@ -240,7 +246,7 @@ gives you a piece to play."""
   void $ forkAff $ runProcess $ cleanup' `pullFrom` (nextButton' "nb4" 622 260)
 
 
-slide5 :: forall e. DemoEffects e Unit
+slide5 :: Aff Unit
 slide5 = do
   let piece = "id-Dark-Tall-Square-Hollow"
 
@@ -283,44 +289,44 @@ all pieces have been played."""
 
 type ShapeID = String
 
-foreign import nextButton_ :: forall e.
-  Fn5
+foreign import nextButton_ ::
+  Fn6
   ShapeID
   Int
   Int
   String
-  (Aff (avar :: AVAR, graphics :: GRAPHICS | e) Unit)
-  (Aff (avar :: AVAR, graphics :: GRAPHICS | e) GraphicItem)
+  (Aff Unit) ForeignAffHandler
+  (EffectFnAff GraphicItem)
 
-foreign import prevButton_ :: forall e.
-  Fn4
+foreign import prevButton_ ::
+  Fn5
   ShapeID
   Int
   Int
-  (Aff (avar :: AVAR, graphics :: GRAPHICS | e) Unit)
-  (Aff (avar :: AVAR, graphics :: GRAPHICS | e) GraphicItem)
+  (Aff Unit) ForeignAffHandler
+  (EffectFnAff GraphicItem)
 
-nextButton :: forall e
-   . ShapeID
+nextButton :: 
+     ShapeID
   -> Int
   -> Int
-  -> (Aff (avar :: AVAR, graphics :: GRAPHICS | e) Unit)
-  -> (Aff (avar :: AVAR, graphics :: GRAPHICS | e) GraphicItem)
-nextButton s x y cb = runFn5 nextButton_ s x y "NEXT" cb
+  -> (Aff Unit)
+  -> (Aff GraphicItem)
+nextButton s x y cb = fromEffectFnAff $ runFn6 nextButton_ s x y "NEXT" cb foreignAffHandler
 
-nextButtonNamed :: forall e
-   . ShapeID
+nextButtonNamed ::
+     ShapeID
   -> Int
   -> Int
   -> String
-  -> (Aff (avar :: AVAR, graphics :: GRAPHICS | e) Unit)
-  -> (Aff (avar :: AVAR, graphics :: GRAPHICS | e) GraphicItem)
-nextButtonNamed id x y name cb = runFn5 nextButton_ id x y name cb
+  -> (Aff Unit)
+  -> (Aff GraphicItem)
+nextButtonNamed id x y name cb = fromEffectFnAff $ runFn6 nextButton_ id x y name cb foreignAffHandler
 
-prevButton :: forall e
-   . ShapeID
+prevButton ::
+     ShapeID
   -> Int
   -> Int
-  -> (Aff (avar :: AVAR, graphics :: GRAPHICS | e) Unit)
-  -> (Aff (avar :: AVAR, graphics :: GRAPHICS | e) GraphicItem)
-prevButton = runFn4 prevButton_
+  -> (Aff Unit)
+  -> (Aff GraphicItem)
+prevButton s x y cb = fromEffectFnAff $ runFn5 prevButton_ s x y cb foreignAffHandler

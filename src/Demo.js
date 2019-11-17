@@ -1,20 +1,27 @@
 'use strict';
 
-exports.nextButton_ = function(name, x, y, content, aff) {
+const _id = function() {};
+const _cancelSuccess = function (cancelError, cancelerError, cancelerSuccess) {
+  cancelerSuccess();
+};
+
+exports.nextButton_ = function(name, x, y, content, aff, affHandler) {
   return function(success, error) {
     var button = Game.Demo.nextButton(name, x, y, content, function() {
-      var a = aff(function() {});
-      a();
+      affHandler(aff)({});
+      
     })
     success(button);
+    return cancelerSuccess;
   }
 }
 
-exports.prevButton_ = function(name, x, y, aff) {
+exports.prevButton_ = function(name, x, y, aff, affHandler) {
   return function(success, error) {
     var button = Game.Demo.prevButton(name, x, y, function() {
-      aff(function() {});
+      affHandler(aff)({});
     })
     success(button);
+    return cancelerSuccess;
   }
 }

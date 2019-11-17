@@ -13,6 +13,7 @@ import Data.Foldable (traverse_)
 import Data.Maybe (Maybe(Nothing, Just), isNothing)
 import Data.Newtype (unwrap)
 import DataTypes (GameState, GameType(TwoPlayerSameTerminal))
+import Demo (runDemo)
 import Effect.Aff (Aff, attempt)
 import Effect.Class (liftEffect)
 import Effect.Class.Console (log)
@@ -86,11 +87,12 @@ mainMenuHandler e = do
     --   ))
     --   void $ attempt startGame
     --   pure unit
-    -- "how-to-play" -> do
-    --   hideMainMenu
-    --   showGame
-    --   hideGivePieceText
-    --   runDemo
+    "how-to-play" -> do
+      hideMainMenu
+      showGame
+      hideGivePieceText
+      runDemo
+      pure unit
 
     _ -> log $ "Bad input: " <> e <> " is not handled in main menu handler."
 
